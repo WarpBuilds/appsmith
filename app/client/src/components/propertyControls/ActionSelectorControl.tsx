@@ -17,13 +17,16 @@ import { canTranslateToUI, getActionBlocks } from "@shared/ast";
 import {
   getActions,
   getJSCollections,
+  getModuleInstances,
   getPlugins,
-} from "selectors/entitiesSelector";
+} from "@appsmith/selectors/entitiesSelector";
 import store from "store";
 import keyBy from "lodash/keyBy";
 import { getCurrentPageId } from "selectors/editorSelectors";
 import { getApiQueriesAndJSActionOptionsWithChildren } from "components/editorComponents/ActionCreator/helpers";
 import { selectEvaluationVersion } from "@appsmith/selectors/applicationSelectors";
+import type { ModuleInstanceDataState } from "@appsmith/constants/ModuleInstanceConstants";
+import { MODULE_TYPE } from "@appsmith/constants/ModuleConstants";
 
 class ActionSelectorControl extends BaseControl<ControlProps> {
   componentRef = React.createRef<HTMLDivElement>();
@@ -61,7 +64,13 @@ class ActionSelectorControl extends BaseControl<ControlProps> {
   };
 
   render() {
-    const { label, propertyValue } = this.props;
+    const {
+      dataTreePath,
+      label,
+      propertyName,
+      propertyValue,
+      widgetProperties,
+    } = this.props;
 
     return (
       <ActionCreator
@@ -70,9 +79,13 @@ class ActionSelectorControl extends BaseControl<ControlProps> {
         additionalControlData={
           this.props.additionalControlData as Record<string, any>
         }
+        dataTreePath={dataTreePath}
         onValueChange={this.handleValueUpdate}
+        propertyName={propertyName}
         ref={this.componentRef}
         value={propertyValue}
+        widgetName={widgetProperties.widgetName}
+        widgetType={widgetProperties.type}
       />
     );
   }
@@ -88,9 +101,22 @@ class ActionSelectorControl extends BaseControl<ControlProps> {
     const jsActions = getJSCollections(state);
     const codeFromProperty = getCodeFromMoustache(value?.trim() || "");
     const evaluationVersion = selectEvaluationVersion(state);
+    const moduleInstances = getModuleInstances(state);
+
+    const queryModuleInstances = Object.values(moduleInstances).map(
+      (instance) => {
+        if (instance.type === MODULE_TYPE.QUERY) {
+          return {
+            config: instance,
+            data: undefined,
+          };
+        }
+      },
+    ) as unknown as ModuleInstanceDataState;
 
     const actionsArray: string[] = [];
     const jsActionsArray: string[] = [];
+    const queryModuleInstanceArray: string[] = [];
 
     actions.forEach((action) => {
       actionsArray.push(action.config.name + ".run");
@@ -102,6 +128,11 @@ class ActionSelectorControl extends BaseControl<ControlProps> {
         jsActionsArray.push(jsAction.config.name + "." + action.name);
       }),
     );
+
+    queryModuleInstances.forEach((instance) => {
+      queryModuleInstanceArray.push(instance.config.name + ".run");
+      queryModuleInstanceArray.push(instance.config.name + ".clear");
+    });
 
     const canTranslate = canTranslateToUI(codeFromProperty, evaluationVersion);
 
@@ -125,6 +156,7 @@ class ActionSelectorControl extends BaseControl<ControlProps> {
       () => {
         return;
       },
+      queryModuleInstances,
     );
 
     try {

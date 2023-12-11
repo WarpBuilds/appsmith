@@ -2,10 +2,10 @@ import type { BaseAction } from "../Action";
 import type { PluginType } from "entities/Action";
 import type { LayoutOnLoadActionErrors } from "constants/AppsmithActionConstants/ActionConstants";
 
-export type Variable = {
+export interface Variable {
   name: string;
   value: any;
-};
+}
 export interface JSCollection {
   id: string;
   applicationId: string;
@@ -19,15 +19,18 @@ export interface JSCollection {
   variables: Array<Variable>;
   userPermissions?: string[];
   errorReports?: Array<LayoutOnLoadActionErrors>;
+  isPublic?: boolean;
+  moduleId?: string;
+  moduleInstanceId?: string;
 }
 
 export interface JSActionConfig {
   body: string;
-  isAsync: boolean;
   timeoutInMillisecond: number;
   jsArguments: Array<Variable>;
 }
 export interface JSAction extends BaseAction {
   actionConfiguration: JSActionConfig;
   clientSideExecution: boolean;
+  fullyQualifiedName?: string;
 }

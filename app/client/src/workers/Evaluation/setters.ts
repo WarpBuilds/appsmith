@@ -9,11 +9,14 @@ import { dataTreeEvaluator } from "./handlers/evalTree";
 import { get, set } from "lodash";
 import { validate } from "./validations";
 import type {
+  DataTreeEntityConfig,
+  WidgetEntity,
+} from "@appsmith/entities/DataTree/types";
+import type {
   ConfigTree,
   DataTree,
   DataTreeEntity,
-  DataTreeEntityConfig,
-} from "entities/DataTree/dataTreeFactory";
+} from "entities/DataTree/dataTreeTypes";
 import { getFnWithGuards, isAsyncGuard } from "./fns/utils/fnGuard";
 import { shouldAddSetter } from "./evaluate";
 
@@ -29,7 +32,7 @@ class Setters {
    */
   private setterAccessorMap: Record<string, string> = {};
 
-  private applySetterMethod(
+  private async applySetterMethod(
     path: string,
     value: unknown,
     setterMethodName: string,
@@ -89,7 +92,7 @@ class Setters {
 
     if (isWidget(entity)) {
       overrideWidgetProperties({
-        entity,
+        entity: entity as WidgetEntity,
         propertyPath,
         value: parsedValue,
         currentTree: evalTree,
@@ -109,10 +112,16 @@ class Setters {
     set(evalTree, path, parsedValue);
     set(self, path, parsedValue);
 
+    /**
+     * Making the update to dataTree async as there could be queue microtask updates that need to execute before this update.
+     * Issue:- https://github.com/appsmithorg/appsmith/issues/25364
+     */
     return new Promise((resolve) => {
+      resolve(parsedValue);
+    }).then((res) => {
       updatedProperties.push([entityName, propertyPath]);
       evalTreeWithChanges(updatedProperties, evalMetaUpdates);
-      resolve(parsedValue);
+      return res;
     });
   }
   /** Generates a new setter method */

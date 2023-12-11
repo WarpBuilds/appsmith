@@ -4,20 +4,22 @@ import { ReduxActionTypes } from "@appsmith/constants/ReduxActionConstants";
 import type { Location } from "history";
 import type { AppsmithLocationState } from "utils/history";
 
-export type RouteChangeActionPayload = {
+export interface RouteChangeActionPayload {
   location: Location<AppsmithLocationState>;
-};
+  prevLocation: Location<AppsmithLocationState>;
+}
 
 export const routeChanged = (
   location: Location<AppsmithLocationState>,
+  prevLocation: Location<AppsmithLocationState>,
 ): ReduxAction<RouteChangeActionPayload> => {
   return {
     type: ReduxActionTypes.ROUTE_CHANGED,
-    payload: { location },
+    payload: { location, prevLocation },
   };
 };
 
-export const setFocusHistory = (key: string, focusState: FocusState) => {
+export const storeFocusHistory = (key: string, focusState: FocusState) => {
   return {
     type: ReduxActionTypes.SET_FOCUS_HISTORY,
     payload: { key, focusState },

@@ -2,8 +2,6 @@
 name: Appsmith Server Workflow
 
 on:
-  # This line enables manual triggering of this workflow.
-  workflow_dispatch:
   workflow_call:
     inputs:
       pr:
@@ -15,12 +13,10 @@ on:
         required: false
         type: string
         default: "false"
-
-
-  pull_request:
-    branches: [release, master]
-    paths:
-      - "app/server/**"
+      branch:
+        description: "This is the branch to be used for the build."
+        required: false
+        type: string
 
 # Change the working directory for all the jobs in this workflow
 defaults:
@@ -28,14 +24,8 @@ defaults:
     working-directory: app/server
 
 jobs:
-  build:
+  server-unit-tests:
     runs-on: ubuntu-latest-8-cores
-    # Only run this workflow for internally triggered events
-    if: |
-      github.event.pull_request.head.repo.full_name == github.repository ||
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'repository_dispatch'
 
     # Service containers to run with this job. Required for running tests
     services:
@@ -54,18 +44,26 @@ jobs:
 
       # Check out merge commit with the base branch in case this workflow is invoked via pull request
       - name: Check out merged commit from PR and base branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         if: inputs.pr != 0
         with:
-          fetch-depth: 0
+          fetch-tags: true
           ref: refs/pull/${{ inputs.pr }}/merge
+
+      # Check out the specified branch in case this workflow is called by another workflow
+      - name: Checkout the specified branch
+        if: inputs.pr == 0 && inputs.branch != ''
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          ref: ${{ inputs.branch }}
 
       # Checkout the code in the current branch in case the workflow is called because of a branch push event
       - name: Check out the head commit of the branch
-        uses: actions/checkout@v3
-        if: inputs.pr == 0
+        uses: actions/checkout@v4
+        if: inputs.pr == 0 && inputs.branch == ''
         with:
-          fetch-depth: 0
+          fetch-tags: true
 
       - name: Figure out the PR number
         run: echo ${{ inputs.pr }}
@@ -95,8 +93,8 @@ jobs:
         if: steps.run_result.outputs.run_result != 'success'
         uses: actions/setup-java@v3
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       # Retrieve maven dependencies from cache. After a successful run, these dependencies are cached again
       - name: Cache maven dependencies
@@ -120,7 +118,7 @@ jobs:
         run: |
           # Since this is an unreleased build, we set the version to incremented version number with a
           # `-SNAPSHOT` suffix.
-          latest_released_version="$(git tag --list 'v*' --sort=-version:refname | head -1)"
+          latest_released_version="$(git ls-remote --tags --sort=-v:refname "$(git remote | head -1)" 'v*' | awk -F/ '{print $NF; exit}')"
           echo "latest_released_version = $latest_released_version"
           next_version="$(echo "$latest_released_version" | awk -F. -v OFS=. '{ $NF++; print }')"
           echo "next_version = $next_version"
@@ -134,11 +132,13 @@ jobs:
           ACTIVE_PROFILE: test
           APPSMITH_MONGODB_URI: "mongodb://localhost:27017/mobtools"
           APPSMITH_CLOUD_SERVICES_BASE_URL: "https://release-cs.appsmith.com"
+          APPSMITH_CLOUD_SERVICES_TEMPLATE_UPLOAD_AUTH: ${{ secrets.APPSMITH_CLOUD_SERVICES_TEMPLATE_UPLOAD_AUTH }}
           APPSMITH_REDIS_URL: "redis://127.0.0.1:6379"
           APPSMITH_ENCRYPTION_PASSWORD: "password"
           APPSMITH_ENCRYPTION_SALT: "salt"
           APPSMITH_IS_SELF_HOSTED: false
           APPSMITH_ENVFILE_PATH: /tmp/dummy.env
+          APPSMITH_VERBOSE_LOGGING_ENABLED: false
         run: |
           if [[ "${{ inputs.skip-tests }}" == "true" ]]
           then
@@ -148,7 +148,16 @@ jobs:
             -DnewVersion=${{ steps.vars.outputs.version }} \
             -DgenerateBackupPoms=false \
             -DprocessAllModules=true
+          args="$args -DtestResultFile=$PWD/failed-server-tests.txt"
           ./build.sh $args
+
+      - name: Upload the failed tests report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: failed-server-tests
+          path: app/server/failed-server-tests.txt
+          if-no-files-found: ignore
 
       # Restore the previous built bundle if present. If not push the newly built into the cache
       - name: Restore the previous bundle

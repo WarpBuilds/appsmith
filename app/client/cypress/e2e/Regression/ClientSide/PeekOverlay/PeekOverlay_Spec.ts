@@ -6,21 +6,25 @@ import {
   table,
   debuggerHelper,
   peekOverlay,
-  tedTestConfig,
+  dataManager,
 } from "../../../../support/Objects/ObjectsCore";
+import {
+  PageLeftPane,
+  PagePaneSegment,
+} from "../../../../support/Pages/EditorNavigation";
 
 describe("Peek overlay", () => {
   it("1. Main test", () => {
     entityExplorer.DragDropWidgetNVerify("tablewidgetv2", 500, 100);
-    entityExplorer.NavigateToSwitcher("Explorer");
+    PageLeftPane.switchSegment(PagePaneSegment.Explorer);
     table.AddSampleTableData();
     apiPage.CreateAndFillApi(
-      tedTestConfig.dsValues[tedTestConfig.defaultEnviorment].mockApiUrl,
+      dataManager.dsValues[dataManager.defaultEnviorment].mockApiUrl,
     );
     agHelper.Sleep(2000);
     apiPage.RunAPI();
     apiPage.CreateAndFillApi(
-      tedTestConfig.dsValues[tedTestConfig.defaultEnviorment].mockApiUrl,
+      dataManager.dsValues[dataManager.defaultEnviorment].mockApiUrl,
     );
     agHelper.Sleep(2000);
 

@@ -4,10 +4,7 @@ import {
   DATASOURCE_REST_API_FORM,
   DATASOURCE_SAAS_FORM,
 } from "@appsmith/constants/forms";
-import {
-  DB_NOT_SUPPORTED,
-  getCurrentEnvironment,
-} from "@appsmith/utils/Environments";
+import { DB_NOT_SUPPORTED } from "@appsmith/utils/Environments";
 import { diff } from "deep-diff";
 import { PluginName, PluginPackageName, PluginType } from "entities/Action";
 import type {
@@ -19,7 +16,7 @@ import type {
 import { AuthenticationStatus, AuthType } from "entities/Datasource";
 import { get, isArray } from "lodash";
 import store from "store";
-import { getPlugin } from "selectors/entitiesSelector";
+import { getPlugin } from "@appsmith/selectors/entitiesSelector";
 import type { AppState } from "@appsmith/reducers";
 import {
   MOCK_DB_TABLE_NAMES,
@@ -60,7 +57,7 @@ export function shouldFocusOnPropertyControl(
  * @returns
  */
 export function getPropertyControlFocusElement(
-  element: HTMLDivElement | null,
+  element: HTMLElement | null,
 ): HTMLElement | undefined {
   if (element?.children) {
     const [, propertyInputElement] = element.children;
@@ -97,12 +94,15 @@ export function getPropertyControlFocusElement(
  * - authentication type is oauth2 and authorized status success and is a Google Sheet Plugin
  * @param datasource Datasource
  * @param plugin Plugin
+ * @param currentEnvironment string
+ * @param validStatusArr Array<AuthenticationStatus>
  * @returns boolean
  */
 export function isDatasourceAuthorizedForQueryCreation(
   datasource: Datasource,
   plugin: Plugin,
-  currentEnvironment = getCurrentEnvironment(),
+  currentEnvironment: string,
+  validStatusArr: Array<AuthenticationStatus> = [AuthenticationStatus.SUCCESS],
 ): boolean {
   if (!datasource || !datasource.hasOwnProperty("datasourceStorages"))
     return false;
@@ -127,12 +127,14 @@ export function isDatasourceAuthorizedForQueryCreation(
   );
 
   if (isGoogleSheetPlugin) {
+    const authStatus = get(
+      datasourceStorage,
+      "datasourceConfiguration.authentication.authenticationStatus",
+    ) as AuthenticationStatus;
     const isAuthorized =
       authType === AuthType.OAUTH2 &&
-      get(
-        datasourceStorage,
-        "datasourceConfiguration.authentication.authenticationStatus",
-      ) === AuthenticationStatus.SUCCESS;
+      !!authStatus &&
+      validStatusArr.includes(authStatus);
     return isAuthorized;
   }
 
@@ -183,6 +185,7 @@ export function getFormName(plugin: Plugin): string {
     switch (pluginType) {
       case PluginType.DB:
       case PluginType.REMOTE:
+      case PluginType.AI:
         return DATASOURCE_DB_FORM;
       case PluginType.SAAS:
         return DATASOURCE_SAAS_FORM;

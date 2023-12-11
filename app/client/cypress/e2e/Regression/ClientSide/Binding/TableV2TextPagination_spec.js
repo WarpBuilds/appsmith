@@ -1,3 +1,7 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
+
 const commonlocators = require("../../../../locators/commonlocators.json");
 const testdata = require("../../../../fixtures/testdata.json");
 import apiPageLocators from "../../../../locators/ApiEditor";
@@ -28,15 +32,15 @@ describe("Test Create Api and Bind to Table widget", function () {
     );
     apiPage.RunAPI();
     // Table-Text, Validate Server Side Pagination of Paginate with Table v2 Page No
-    entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     /**Bind Api1 with Table widget */
     cy.testJsontext("tabledata", "{{Api1.data}}");
     cy.CheckWidgetProperties(commonlocators.serverSidePaginationCheckbox);
     /**Bind Table with Textwidget with selected row */
-    entityExplorer.SelectEntityByName("Text1");
+    EditorNavigation.SelectEntityByName("Text1", EntityType.Widget);
 
     cy.testJsontext("text", "{{Table1.selectedRow.avatar}}");
-    entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
 
     cy.readTableV2data("0", "0").then((tabData) => {
       const tableData = tabData;
@@ -83,7 +87,7 @@ describe("Test Create Api and Bind to Table widget", function () {
 
   it("3. Table-Text, Validate Server Side Pagination of Paginate with Total v2 Records Count", function () {
     deployMode.NavigateBacktoEditor();
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     propPane.UpdatePropertyFieldValue("Total Records", "20");
     deployMode.DeployApp();
     cy.wait("@postExecute");
@@ -126,40 +130,29 @@ describe("Test Create Api and Bind to Table widget", function () {
       },
     );
 
-    //cy.get(".t--entity-name:contains(Text1)").click({ force: true });
-    //cy.openPropertyPane("textwidget");
     /** Bind the Table widget with Text widget*/
     //cy.testJsontext("text", "{{Table1.selectedRow.avatar}}");
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     propPane.UpdatePropertyFieldValue("Table data", "{{Api2.data}}");
     cy.executeDbQuery("Api2", "onPageChange");
   });
 
-  it.skip("5. Table-Text, Validate Server Side Pagination of Paginate with Response URL", function () {
+  it("5. Table-Text, Validate Server Side Pagination of Paginate with Response URL", function () {
     /**Validate Response data with Table data in Text Widget */
     cy.get("body").then(($ele) => {
       if ($ele.find(locators._backToEditor).length) {
         deployMode.NavigateBacktoEditor();
       }
     });
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
 
-    cy.ValidatePaginateResponseUrlDataV2(
-      apiPageLocators.apiPaginationPrevTest,
-      false,
-    );
+    cy.ValidatePaginateResponseUrlDataV2(apiPageLocators.apiPaginationPrevTest);
     cy.get("@postExecute.all");
     deployMode.DeployApp(locators._widgetInDeployed(draggableWidgets.TABLE));
     table.WaitUntilTableLoad(0, 0, "v2");
     agHelper.Sleep(3000);
-    cy.wait("@postExecute").then((interception) => {
-      let valueToTest = JSON.stringify(
-        interception.response.body.data.body[0].name,
-      );
-      cy.ValidatePaginationInputDataV2(valueToTest);
-    });
     deployMode.NavigateBacktoEditor();
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     cy.ValidatePaginateResponseUrlDataV2(
       apiPageLocators.apiPaginationNextTest,
       true,

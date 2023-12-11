@@ -1,17 +1,20 @@
 // import { INTERCEPT } from "../../../../fixtures/variables";
-let dsName: any, newStoreSecret: any;
-
 import {
   agHelper,
-  entityExplorer,
-  propPane,
-  deployMode,
+  assertHelper,
   dataSources,
-  table,
+  deployMode,
+  entityExplorer,
   entityItems,
   locators,
-  assertHelper,
+  propPane,
+  table,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
+
+let dsName: any, newStoreSecret: any;
 
 describe("Validate MySQL Generate CRUD with JSON Form", () => {
   // beforeEach(function() {
@@ -21,14 +24,14 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
   //   } else cy.log("MySQL DB is found, hence using actual DB");
   // });
 
-  it("1. Create DS for generating CRUD template", () => {
+  before("1. Create DS for generating CRUD template", () => {
     dataSources.CreateDataSource("MySql");
     cy.get("@dsName").then(($dsName) => {
       dsName = $dsName;
     });
   });
 
-  it("2. Create new CRUD Table 'Stores' and populate & refresh Entity Explorer to find the new table", () => {
+  it("1. Create new CRUD Table 'Stores' and populate & refresh Entity Explorer to find the new table", () => {
     let tableCreateQuery = `CREATE TABLE Stores(
       store_id         INTEGER  NOT NULL PRIMARY KEY
      ,name          VARCHAR(36) NOT NULL
@@ -57,31 +60,21 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
    INSERT INTO Stores(store_id,name,store_status,store_address,store_secret_code) VALUES (2183,'Liquor and Food Center','I','501 Lynn Street Tipton, IA 527720000 (41.770090148000065, -91.12981387599996)',NULL);
    INSERT INTO Stores(store_id,name,store_status,store_address,store_secret_code) VALUES (2188,'Kind''s Jack and Jill Food Center','I','110 S Main Sigourney, IA 525910000 (41.333550830000036, -92.20522134099997)',NULL);
    INSERT INTO Stores(store_id,name,store_status,store_address,store_secret_code) VALUES (2190,'Central City Liquor, Inc.','A','1460 2nd Ave Des Moines, IA 503140000 (41.60557033500004, -93.61982683699995)',NULL);`;
-    dataSources.NavigateFromActiveDS(dsName, true);
-    agHelper.RenameWithInPane("CreateStores");
-    dataSources.EnterQuery(tableCreateQuery);
+    dataSources.CreateQueryForDS(dsName, tableCreateQuery, "CreateStores");
     agHelper.FocusElement(locators._codeMirrorTextArea);
     //agHelper.VerifyEvaluatedValue(tableCreateQuery);
 
     dataSources.RunQueryNVerifyResponseViews();
+    dataSources.AssertTableInVirtuosoList(dsName, "Stores");
+
     agHelper.ActionContextMenuWithInPane({
       action: "Delete",
       entityType: entityItems.Query,
     });
-
-    entityExplorer.ExpandCollapseEntity("Datasources");
-    entityExplorer.ExpandCollapseEntity(dsName);
-    entityExplorer.ActionContextMenuByEntityName({
-      entityNameinLeftSidebar: dsName,
-      action: "Refresh",
-    });
-    agHelper.AssertElementVisible(
-      entityExplorer._entityNameInExplorer("Stores"),
-    );
   });
 
-  it("3. Validate Select record from Postgress datasource & verify query response", () => {
-    entityExplorer.ActionTemplateMenuByEntityName("Stores", "SELECT");
+  it("2. Validate Select record from Postgress datasource & verify query response", () => {
+    dataSources.CreateQueryForDS(dsName, "SELECT * FROM Stores LIMIT 10");
     dataSources.RunQueryNVerifyResponseViews(10);
     dataSources.AssertQueryTableResponse(5, "2112");
     dataSources.AssertQueryTableResponse(6, "Mike's Liquors");
@@ -91,8 +84,8 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     });
   });
 
-  it("4. Verify Generate CRUD for the new table & Verify Deploy mode for table - Stores", () => {
-    dataSources.NavigateFromActiveDS(dsName, false);
+  it("3. Verify Generate CRUD for the new table & Verify Deploy mode for table - Stores", () => {
+    dataSources.GeneratePageForDS(dsName);
     agHelper.GetNClick(dataSources._selectTableDropdown, 0, true);
     agHelper.GetNClickByContains(dataSources._dropdownOption, "Stores");
     GenerateCRUDNValidateDeployPage(
@@ -106,15 +99,15 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     table.WaitUntilTableLoad();
   });
 
-  it("5. Verify Update data from Deploy page - on Stores - existing record", () => {
-    entityExplorer.SelectEntityByName("update_form", "Widgets");
+  it("4. Verify Update data from Deploy page - on Stores - existing record", () => {
+    EditorNavigation.SelectEntityByName("update_form", EntityType.Widget);
 
     updatingStoreJSONPropertyFileds();
     deployMode.DeployApp();
     table.SelectTableRow(0, 0, false); //to make JSON form hidden
     agHelper.AssertElementAbsence(locators._jsonFormWidget);
     table.SelectTableRow(3);
-    agHelper.AssertElementVisible(locators._jsonFormWidget);
+    agHelper.AssertElementVisibility(locators._jsonFormWidget);
     dataSources.AssertJSONFormHeader(3, 0, "store_id");
     generateStoresSecretInfo(3);
     cy.get("@secretInfo").then(($secretInfo) => {
@@ -144,7 +137,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     //Hidden field bug - to add here aft secret codes are updated for some fields!
   });
 
-  it("6. Verify Delete field data from Deploy page - on Stores - existing record", () => {
+  it("5. Verify Delete field data from Deploy page - on Stores - existing record", () => {
     table.SelectTableRow(4);
     //Deleting field value from UI - since MYSQL - "" also considered a value & hence even though this field is NOT NULL - no validations
     dataSources.AssertJSONFormHeader(4, 0, "store_id");
@@ -161,12 +154,12 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     updateNVerify(8, 3, "");
   });
 
-  it("7. Verify Delete row from Deploy page - on Stores - existing record", () => {
+  it("6. Verify Delete row from Deploy page - on Stores - existing record", () => {
     table.SelectTableRow(5);
     dataSources.AssertJSONFormHeader(5, 0, "store_id");
     agHelper.ClickButton("Delete", 5);
-    agHelper.AssertElementVisible(locators._modal);
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(locators._modal);
+    agHelper.AssertElementVisibility(
       dataSources._visibleTextSpan(
         "Are you sure you want to delete this item?",
       ),
@@ -174,8 +167,8 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     agHelper.ClickButton("Cancel");
     dataSources.AssertJSONFormHeader(5, 0, "store_id");
     agHelper.ClickButton("Delete", 5);
-    agHelper.AssertElementVisible(locators._modal);
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(locators._modal);
+    agHelper.AssertElementVisibility(
       dataSources._visibleTextSpan(
         "Are you sure you want to delete this item?",
       ),
@@ -188,7 +181,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     dataSources.AssertJSONFormHeader(0, 0, "store_id");
   });
 
-  it("8. Verify Refresh table from Deploy page - on Stores & verify all updates persists", () => {
+  it("7. Verify Refresh table from Deploy page - on Stores & verify all updates persists", () => {
     agHelper.GetNClick(dataSources._refreshIcon);
 
     //Store Address deletion remains
@@ -206,7 +199,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     table.NavigateToNextPage(); //page 2
     agHelper.Sleep(3000); //wait for table navigation to take effect!
     table.WaitUntilTableLoad(); //page 2
-    agHelper.AssertElementVisible(locators._jsonFormWidget); // JSON form should be present
+    agHelper.AssertElementVisibility(locators._jsonFormWidget); // JSON form should be present
 
     table.NavigateToNextPage(); //page 3
     agHelper.Sleep(3000); //wait for table navigation to take effect!
@@ -226,12 +219,12 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     table.WaitUntilTableLoad();
   });
 
-  it("9. Verify Add/Insert from Deploy page - on Stores - new record", () => {
+  it("8. Verify Add/Insert from Deploy page - on Stores - new record", () => {
     deployMode.NavigateBacktoEditor();
     table.WaitUntilTableLoad();
-    entityExplorer.ExpandCollapseEntity("Widgets");
-    entityExplorer.ExpandCollapseEntity("Insert_Modal");
-    entityExplorer.SelectEntityByName("insert_form");
+    EditorNavigation.SelectEntityByName("insert_form", EntityType.Widget, {}, [
+      "Insert_Modal",
+    ]);
     agHelper.Sleep(2000);
 
     //Removing Default values & setting placeholder!
@@ -245,8 +238,8 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
 
     agHelper.GetNClick(dataSources._addIcon);
     agHelper.Sleep(1000); //time for new Modal to settle
-    //agHelper.AssertElementVisible(locator._jsonFormWidget, 1); //Insert Modal at index 1
-    agHelper.AssertElementVisible(locators._visibleTextDiv("Insert Row"));
+    //agHelper.AssertElementVisibility(locator._jsonFormWidget, 1); //Insert Modal at index 1
+    agHelper.AssertElementVisibility(locators._visibleTextDiv("Insert Row"));
     agHelper.ClickButton("Submit");
     agHelper.AssertContains("Column 'store_id' cannot be null");
 
@@ -286,7 +279,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
       .then(($len) => expect($len).to.eq(1));
   });
 
-  it("10. Verify Update fields/Delete from Deploy page - on Stores - newly inserted record", () => {
+  it("9. Verify Update fields/Delete from Deploy page - on Stores - newly inserted record", () => {
     table.SelectTableRow(0);
 
     //validating update happened fine!
@@ -320,7 +313,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     table.NavigateToNextPage(); //page 2
     agHelper.Sleep(3000); //wait for table navigation to take effect!
     table.WaitUntilTableLoad(); //page 2 //newly inserted record would have pushed the existing record to next page!
-    agHelper.AssertElementVisible(locators._jsonFormWidget); //JSON form should be present
+    agHelper.AssertElementVisibility(locators._jsonFormWidget); //JSON form should be present
 
     table.NavigateToPreviousPage();
     agHelper.Sleep(3000); //wait for table navigation to take effect!
@@ -328,8 +321,8 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
 
     dataSources.AssertJSONFormHeader(0, 0, "store_id", "2105");
     agHelper.ClickButton("Delete", 0);
-    agHelper.AssertElementVisible(locators._modal);
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(locators._modal);
+    agHelper.AssertElementVisibility(
       dataSources._visibleTextSpan(
         "Are you sure you want to delete this item?",
       ),
@@ -344,7 +337,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     });
   });
 
-  it("11. Validate Deletion of the Newly Created Page - Stores", () => {
+  it("10. Validate Deletion of the Newly Created Page - Stores", () => {
     deployMode.NavigateBacktoEditor();
     table.WaitUntilTableLoad();
     //Delete the test data
@@ -356,35 +349,29 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     agHelper.RefreshPage();
   });
 
-  it("12. Validate Drop of the Newly Created - Stores - Table from MySQL datasource", () => {
+  it("11. Validate Drop of the Newly Created - Stores - Table from MySQL datasource", () => {
     let deleteTblQuery = "DROP TABLE Stores;";
-    dataSources.NavigateFromActiveDS(dsName, true);
-    agHelper.RenameWithInPane("DropStores");
-    dataSources.EnterQuery(deleteTblQuery);
+    dataSources.CreateQueryForDS(dsName, deleteTblQuery, "DropStores");
     agHelper.FocusElement(locators._codeMirrorTextArea);
     //agHelper.VerifyEvaluatedValue(tableCreateQuery);
 
     dataSources.RunQueryNVerifyResponseViews();
+    dataSources.AssertTableInVirtuosoList(dsName, "Stores", false);
+
     agHelper.ActionContextMenuWithInPane({
       action: "Delete",
       entityType: entityItems.Query,
     });
-    entityExplorer.ExpandCollapseEntity("Datasources");
-    entityExplorer.ExpandCollapseEntity(dsName);
-    entityExplorer.ActionContextMenuByEntityName({
-      entityNameinLeftSidebar: dsName,
-      action: "Refresh",
-    });
-    agHelper.AssertElementAbsence(
-      entityExplorer._entityNameInExplorer("Stores"),
-    );
   });
 
-  it("13. Verify Deletion of the datasource when Pages/Actions associated are not removed yet", () => {
-    deployMode.DeployApp();
-    deployMode.NavigateBacktoEditor();
-    dataSources.DeleteDatasouceFromWinthinDS(dsName, 200); //ProductLines, Employees pages are still using this ds
-  });
+  after(
+    "Verify Deletion of the datasource when Pages/Actions associated are not removed yet",
+    () => {
+      deployMode.DeployApp();
+      deployMode.NavigateBacktoEditor();
+      dataSources.DeleteDatasourceFromWithinDS(dsName, 200);
+    },
+  );
 
   function GenerateCRUDNValidateDeployPage(
     col1Text: string,
@@ -397,7 +384,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     agHelper.AssertContains("Successfully generated a page");
     //assertHelper.AssertNetworkStatus("@getActions", 200);//Since failing sometimes
     assertHelper.AssertNetworkStatus("@postExecute", 200);
-    agHelper.GetNClick(dataSources._visibleTextSpan("Got it"));
+    agHelper.ClickButton("Got it");
     assertHelper.AssertNetworkStatus("@updateLayout", 200);
     deployMode.DeployApp(locators._widgetInDeployed("tablewidget"));
     table.WaitUntilTableLoad();
@@ -415,7 +402,7 @@ describe("Validate MySQL Generate CRUD with JSON Form", () => {
     });
 
     //Validating loaded JSON form
-    cy.xpath(locators._spanButton("Update")).then((selector) => {
+    cy.xpath(locators._buttonByText("Update")).then((selector) => {
       cy.wrap(selector)
         .invoke("attr", "class")
         .then((classes) => {

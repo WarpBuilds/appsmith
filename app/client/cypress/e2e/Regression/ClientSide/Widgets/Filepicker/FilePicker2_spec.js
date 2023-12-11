@@ -1,3 +1,7 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
+
 const commonlocators = require("../../../../../locators/commonlocators.json");
 import * as _ from "../../../../../support/Objects/ObjectsCore";
 
@@ -12,21 +16,18 @@ describe("FilePicker Widget Functionality", function () {
   });
 
   it("1. Create API to be used in Filepicker", function () {
-    cy.log("Login Successful");
-    cy.NavigateToAPI_Panel();
-    cy.log("Navigation to API Panel screen successful");
-    cy.CreateAPI("FirstAPI");
-    cy.log("Creation of FirstAPI Action successful");
-    cy.enterDatasourceAndPath(
-      this.dataSet.paginationUrl,
-      this.dataSet.paginationParam,
+    _.apiPage.CreateAndFillApi(
+      _.dataManager.dsValues[_.dataManager.defaultEnviorment].mockApiUrl,
+      "FirstAPI",
     );
-    cy.SaveAndRunAPI();
+    _.agHelper.Sleep(2000);
+    _.apiPage.RunAPI();
   });
 
   it("2. FilePicker Widget Functionality", function () {
-    _.entityExplorer.ExpandCollapseEntity("Container3");
-    _.entityExplorer.SelectEntityByName("FilePicker1");
+    EditorNavigation.SelectEntityByName("FilePicker1", EntityType.Widget, {}, [
+      "Container3",
+    ]);
     //eslint-disable-next-line cypress/no-unnecessary-waiting
     cy.wait(1000);
     //Checking the edit props for FilePicker and also the properties of FilePicker widget
@@ -34,8 +35,9 @@ describe("FilePicker Widget Functionality", function () {
   });
 
   it("3. It checks the loading state of filepicker on call the action", function () {
-    _.entityExplorer.ExpandCollapseEntity("Container3");
-    _.entityExplorer.SelectEntityByName("FilePicker1");
+    EditorNavigation.SelectEntityByName("FilePicker1", EntityType.Widget, {}, [
+      "Container3",
+    ]);
     const fixturePath = "cypress/fixtures/testFile.mov";
     cy.executeDbQuery("FirstAPI", "onFilesSelected");
     cy.get(commonlocators.filePickerButton).click();
@@ -57,23 +59,15 @@ describe("FilePicker Widget Functionality", function () {
         force: true,
       });
     cy.get(commonlocators.filePickerUploadButton).click();
-    //eslint-disable-next-line cypress/no-unnecessary-waiting
     cy.wait(500);
     cy.get("button").contains("1 files selected");
     cy.get(commonlocators.filePickerButton).click();
     //eslint-disable-next-line cypress/no-unnecessary-waiting
     cy.wait(200);
     cy.get("button.uppy-Dashboard-Item-action--remove").click();
-    cy.get("button.uppy-Dashboard-browse").click();
-    cy.get(commonlocators.filePickerInput)
-      .first()
-      .selectFile("cypress/fixtures/testFile2.mov", {
-        force: true,
-      });
-    cy.get(commonlocators.filePickerUploadButton).click();
-    //eslint-disable-next-line cypress/no-unnecessary-waiting
+    _.agHelper.GetNClick(".uppy-u-reset.uppy-Dashboard-close");
     cy.wait(500);
-    cy.get("button").contains("1 files selected");
+    cy.get("button").contains("Select Files");
   });
 
   afterEach(() => {

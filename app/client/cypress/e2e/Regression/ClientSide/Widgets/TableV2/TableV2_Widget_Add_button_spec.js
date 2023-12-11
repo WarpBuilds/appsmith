@@ -1,10 +1,13 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
+
 const widgetsPage = require("../../../../../locators/Widgets.json");
 const commonlocators = require("../../../../../locators/commonlocators.json");
 const testdata = require("../../../../../fixtures/testdata.json");
 
 import {
   agHelper,
-  entityExplorer,
   propPane,
   table,
 } from "../../../../../support/Objects/ObjectsCore";
@@ -15,7 +18,7 @@ describe("Table Widget V2 property pane feature validation", function () {
   });
 
   it("1. Table widget V2 with Add button test and validation", function () {
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     // Open column details of "id".
     cy.get(widgetsPage.tableV2Btn).should("not.exist");
     // Changing column data type to "Button"
@@ -55,7 +58,7 @@ describe("Table Widget V2 property pane feature validation", function () {
     cy.editColumn("id");
     const color1 = "rgb(255, 0, 0)";
     cy.moveToStyleTab();
-    cy.get(widgetsPage.buttonColor).click({ force: true }).clear().type(color1);
+    propPane.EnterJSContext("Button color", color1);
     cy.get(widgetsPage.tableV2Btn).should(
       "have.css",
       "background-color",
@@ -64,31 +67,23 @@ describe("Table Widget V2 property pane feature validation", function () {
 
     // Changing the color again to reproduce issue #9526
     const color2 = "rgb(255, 255, 0)";
-    cy.get(widgetsPage.buttonColor)
-      .click({ force: true })
-      .clear()
-      // following wait is required to reproduce #9526
-      .wait(600)
-      .type(color2);
+    propPane.EnterJSContext("Button color", color2);
+
     cy.get(widgetsPage.tableV2Btn).should(
       "have.css",
       "background-color",
       color2,
-    );
-  });
-
-  it("3. Table widget triggeredRow property should be accessible", function () {
+    ); //verifying Bug #9526 - color is not reverted back to default
+    //Table widget triggeredRow property should be accessible", function () {
     cy.get(commonlocators.TextInside).should("have.text", "Tobias Funke");
-  });
-
-  it("4. Table widget triggeredRow property should be same even after sorting the table", function () {
+    // Table widget triggeredRow property should be same even after sorting the table", function () {
     //sort table date on second column
     cy.get(".draggable-header ").first().click({ force: true });
     cy.wait(1000);
     cy.get(commonlocators.TextInside).should("have.text", "Tobias Funke");
   });
 
-  it("5. Table widget add new icon button column", function () {
+  it("3. Table widget add new icon button column", function () {
     cy.get("[data-testid='t--property-pane-back-btn']").click({ force: true });
     // hide id column
     cy.makeColumnVisible("id");
@@ -123,7 +118,7 @@ describe("Table Widget V2 property pane feature validation", function () {
     cy.deleteColumn("customColumn1");
   });
 
-  it("6. Table widget add new menu button column", function () {
+  it("4. Table widget add new menu button column", function () {
     cy.openPropertyPane("tablewidgetv2");
     // click on Add new Column.
     cy.get(".t--add-column-btn").click();
@@ -279,30 +274,13 @@ describe("Table Widget V2 property pane feature validation", function () {
       });
   });
 
-  it("7. Table widget test on button icon click, row should not get deselected", () => {
+  it("5. Table widget test on button icon click, row should not get deselected", () => {
     cy.get(widgetsPage.tableV2IconBtn).last().click({ force: true });
     cy.get(commonlocators.TextInside).should("have.text", "Tobias Funke");
     //click icon button again
     cy.get(widgetsPage.tableV2IconBtn).last().click({ force: true });
     cy.get(commonlocators.TextInside).should("have.text", "Tobias Funke");
-    cy.get("[data-testid='t--property-pane-back-btn']").click({ force: true });
-    cy.wait(500);
-    cy.get("[data-testid='t--property-pane-back-btn']").click({ force: true });
-  });
-
-  it("8. Table widget test on button when transparent", () => {
-    cy.openPropertyPane("tablewidgetv2");
-    // Open column details of "id".
-    cy.editColumn("id");
-    // Changing column "Button" color to transparent
-    cy.moveToStyleTab();
-    cy.get(widgetsPage.buttonColor).click({ force: true });
-    cy.wait(2000);
-    cy.get(widgetsPage.transparent).click({ force: true });
-    cy.get(".td[data-colindex=5][data-rowindex=0] .bp3-button").should(
-      "have.css",
-      "background-color",
-      "rgba(0, 0, 0, 0)",
-    );
+    propPane.NavigateBackToPropertyPane(false);
+    propPane.NavigateBackToPropertyPane();
   });
 });

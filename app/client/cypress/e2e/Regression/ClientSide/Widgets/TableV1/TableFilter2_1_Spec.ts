@@ -1,4 +1,7 @@
 import * as _ from "../../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
 
 describe("Verify various Table_Filter combinations", function () {
   before(() => {
@@ -6,7 +9,7 @@ describe("Verify various Table_Filter combinations", function () {
   });
 
   it("1. Adding Data to Table Widget", function () {
-    _.entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     _.propPane.UpdatePropertyFieldValue(
       "Table data",
       JSON.stringify(this.dataSet.TableInput),
@@ -218,8 +221,7 @@ describe("Verify various Table_Filter combinations", function () {
     _.table.RemoveFilterNVerify("2381224", true, false);
   });
 
-  //Skipping until bug closed
-  it.skip("8. Verify Table Filter for changing from AND -> OR [Remove a filter] -> AND + Bug 12642", function () {
+  it("8. Verify Table Filter for changing from AND -> OR [Remove a filter] -> AND + Bug 12642", function () {
     _.table.OpenNFilterTable("id", "contains", "7");
     _.table.ReadTableRowColumnData(1, 4).then(($cellData) => {
       expect($cellData).to.eq("Beef steak");
@@ -241,11 +243,7 @@ describe("Verify various Table_Filter combinations", function () {
       expect($cellData).to.eq("Tuna Salad");
     });
 
-    _.table.RemoveFilterNVerify("2381224", false, true, 0); //Verifies bug 12642
-
-    _.agHelper.GetNClick(_.table._filterOperatorDropdown);
-    cy.get(_.table._dropdownText).contains("AND").click();
-    _.agHelper.ClickButton("APPLY");
+    _.table.RemoveFilterNVerify("7434532", false, true, 0); //Since TableV1 - revertion of operator upon removal of filter is not supported
 
     _.table.ReadTableRowColumnData(0, 4).then(($cellData) => {
       expect($cellData).to.eq("Avocado Panini");

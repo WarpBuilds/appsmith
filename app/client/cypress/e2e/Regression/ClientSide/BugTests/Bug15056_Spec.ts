@@ -1,10 +1,13 @@
 import {
-  tedTestConfig,
+  dataManager,
   agHelper,
   jsEditor,
   apiPage,
   entityExplorer,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
 
 describe("JS data update on button click", function () {
   before(() => {
@@ -13,7 +16,7 @@ describe("JS data update on button click", function () {
 
   it("1. Populates js function data when triggered via button click", function () {
     apiPage.CreateAndFillApi(
-      tedTestConfig.dsValues[tedTestConfig.defaultEnviorment].mockApiUrl,
+      dataManager.dsValues[dataManager.defaultEnviorment].mockApiUrl,
       "Api1",
     );
 
@@ -38,7 +41,7 @@ describe("JS data update on button click", function () {
       toRun: false,
       shouldCreateNewJSObj: true,
     });
-    entityExplorer.SelectEntityByName("Button2", "Widgets");
+    EditorNavigation.SelectEntityByName("Button2", EntityType.Widget);
     agHelper.ClickButton("Submit");
     agHelper.AssertContains("myFun1 Data", "exist");
     agHelper.AssertContains("myFun2 Data", "exist");

@@ -1,5 +1,7 @@
 package com.appsmith.server.helpers;
 
+import com.appsmith.server.domains.Application;
+import com.appsmith.server.domains.GitApplicationMetadata;
 import com.appsmith.server.exceptions.AppsmithError;
 import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.util.WebClientUtils;
@@ -94,5 +96,36 @@ public class GitUtils {
             return "";
         }
         return sshUrl.split("\\.")[0].replaceFirst("git@", "");
+    }
+
+    public static String getDefaultBranchName(GitApplicationMetadata gitApplicationMetadata) {
+        return StringUtils.isEmptyOrNull(gitApplicationMetadata.getDefaultBranchName())
+                ? gitApplicationMetadata.getBranchName()
+                : gitApplicationMetadata.getDefaultBranchName();
+    }
+
+    /**
+     * This method checks if the application is connected to git and is the default branched.
+     *
+     * @param application   application to be checked
+     * @return              true if the application is default branched, false otherwise
+     */
+    public static boolean isDefaultBranchedApplication(Application application) {
+        GitApplicationMetadata metadata = application.getGitApplicationMetadata();
+        return isApplicationConnectedToGit(application)
+                && !StringUtils.isEmptyOrNull(metadata.getBranchName())
+                && metadata.getBranchName().equals(metadata.getDefaultBranchName());
+    }
+
+    /**
+     * This method checks if the application is connected to Git or not.
+     * @param application   application to be checked
+     * @return              true if the application is connected to Git, false otherwise
+     */
+    public static boolean isApplicationConnectedToGit(Application application) {
+        GitApplicationMetadata metadata = application.getGitApplicationMetadata();
+        return metadata != null
+                && !StringUtils.isEmptyOrNull(metadata.getDefaultApplicationId())
+                && !StringUtils.isEmptyOrNull(metadata.getRemoteUrl());
     }
 }

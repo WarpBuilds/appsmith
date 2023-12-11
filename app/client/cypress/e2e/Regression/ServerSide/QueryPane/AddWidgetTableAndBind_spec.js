@@ -1,3 +1,7 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
+
 const queryEditor = require("../../../../locators/QueryEditor.json");
 const widgetsPage = require("../../../../locators/Widgets.json");
 const publish = require("../../../../locators/publishWidgetspage.json");
@@ -7,7 +11,7 @@ import {
   agHelper,
   dataSources,
 } from "../../../../support/Objects/ObjectsCore";
-let datasourceName;
+import { Widgets } from "../../../../support/Pages/DataSources";
 
 describe("Addwidget from Query and bind with other widgets", function () {
   before(() => {
@@ -33,8 +37,8 @@ describe("Addwidget from Query and bind with other widgets", function () {
       .invoke("text")
       .then((text) => {
         const tableRowTxt = text;
-        cy.get(queryEditor.suggestedTableWidget).click();
-        entityExplorer.SelectEntityByName("Table1");
+        dataSources.AddSuggestedWidget(Widgets.Table);
+        EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
         cy.isSelectRow(1);
         cy.readTableV2dataPublish("1", "0").then((tabData) => {
           const tabValue = tabData;
@@ -46,7 +50,7 @@ describe("Addwidget from Query and bind with other widgets", function () {
   });
 
   it("2. Input widget test with default value from table widget", () => {
-    entityExplorer.SelectEntityByName("Input1");
+    EditorNavigation.SelectEntityByName("Input1", EntityType.Widget);
     cy.get(widgetsPage.defaultInput).type(testdata.addInputWidgetBinding);
     cy.wait("@updateLayout").should(
       "have.nested.property",
@@ -68,7 +72,7 @@ describe("Addwidget from Query and bind with other widgets", function () {
   });
 
   it("3. Input widget test with default value from table widget[Bug#4136]", () => {
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     cy.get(".t--property-pane-title").click({ force: true });
     cy.get(".t--property-pane-title")
       .type("TableUpdated", { delay: 300 })

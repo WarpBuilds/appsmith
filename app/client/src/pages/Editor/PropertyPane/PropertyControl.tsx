@@ -16,10 +16,7 @@ import {
   deleteWidgetProperty,
   setWidgetDynamicProperty,
 } from "actions/controlActions";
-import type {
-  PropertyHookUpdates,
-  PropertyPaneControlConfig,
-} from "constants/PropertyControlConstants";
+import type { PropertyPaneControlConfig } from "constants/PropertyControlConstants";
 import type { IPanelProps } from "@blueprintjs/core";
 import PanelPropertiesEditor from "./PanelPropertiesEditor";
 import type { DynamicPath } from "utils/DynamicBindingUtils";
@@ -42,22 +39,33 @@ import { getExpectedValue } from "utils/validation/common";
 import type { ControlData } from "components/propertyControls/BaseControl";
 import type { AppState } from "@appsmith/reducers";
 import { AutocompleteDataType } from "utils/autocomplete/AutocompleteDataType";
-import { JS_TOGGLE_DISABLED_MESSAGE } from "@appsmith/constants/messages";
+import {
+  JS_TOGGLE_DISABLED_MESSAGE,
+  JS_TOGGLE_SWITCH_JS_MESSAGE,
+} from "@appsmith/constants/messages";
 import {
   getPropertyControlFocusElement,
   shouldFocusOnPropertyControl,
 } from "utils/editorContextUtils";
 import PropertyPaneHelperText from "./PropertyPaneHelperText";
-import { setFocusablePropertyPaneField } from "actions/propertyPaneActions";
-import WidgetFactory from "utils/WidgetFactory";
+import {
+  setFocusablePropertyPaneField,
+  setSelectedPropertyPanel,
+} from "actions/propertyPaneActions";
+import WidgetFactory from "WidgetProvider/factory";
 import type { AdditionalDynamicDataTree } from "utils/autocomplete/customTreeTypeDefCreator";
 import clsx from "clsx";
 import styled from "styled-components";
 import { importSvg } from "design-system-old";
 import classNames from "classnames";
+import type { PropertyUpdates } from "WidgetProvider/constants";
 import { getIsOneClickBindingOptionsVisibility } from "selectors/oneClickBindingSelectors";
+import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
+import { FEATURE_FLAG } from "@appsmith/entities/FeatureFlag";
 
-const ResetIcon = importSvg(() => import("assets/icons/control/undo_2.svg"));
+const ResetIcon = importSvg(
+  async () => import("assets/icons/control/undo_2.svg"),
+);
 
 const StyledDeviated = styled.div`
   background-color: var(--ads-v2-color-bg-brand);
@@ -153,6 +161,10 @@ const PropertyControl = memo((props: Props) => {
   })();
 
   const propertyValue = _.get(widgetProperties, props.propertyName);
+
+  const experimentalJSToggle = useFeatureFlag(
+    FEATURE_FLAG.ab_one_click_learning_popover_enabled,
+  );
 
   /**
    * checks if property value is deviated or not.
@@ -265,7 +277,7 @@ const PropertyControl = memo((props: Props) => {
       propertyName: string,
       propertyValue: any,
     ): UpdateWidgetPropertyPayload | undefined => {
-      let propertiesToUpdate: Array<PropertyHookUpdates> | undefined;
+      let propertiesToUpdate: Array<PropertyUpdates> | undefined;
       // To support updating multiple properties of same widget.
       if (updateHook) {
         propertiesToUpdate = updateHook(
@@ -570,6 +582,12 @@ const PropertyControl = memo((props: Props) => {
   const openPanel = useCallback(
     (panelProps: any) => {
       if (props.panelConfig) {
+        dispatch(
+          setSelectedPropertyPanel(
+            `${widgetProperties.widgetName}.${props.propertyName}`,
+            panelProps.index,
+          ),
+        );
         props.panel.openPanel({
           component: PanelPropertiesEditor,
           props: {
@@ -584,6 +602,7 @@ const PropertyControl = memo((props: Props) => {
       }
     },
     [
+      widgetProperties.widgetName,
       props.panelConfig,
       props.panel,
       props.propertyName,
@@ -762,6 +781,12 @@ const PropertyControl = memo((props: Props) => {
       }
     }
 
+    const JSToggleTooltip = isToggleDisabled
+      ? JS_TOGGLE_DISABLED_MESSAGE
+      : !isDynamic
+      ? JS_TOGGLE_SWITCH_JS_MESSAGE
+      : "";
+
     try {
       return (
         <ControlWrapper
@@ -777,21 +802,20 @@ const PropertyControl = memo((props: Props) => {
           }
           ref={controlRef}
         >
-          <div className="gap-1 flex items-center">
+          <div className="flex items-center gap-1">
             <PropertyHelpLabel
               label={label}
               theme={props.theme}
               tooltip={helpText}
             />
             {isConvertible && (
-              <Tooltip
-                content={JS_TOGGLE_DISABLED_MESSAGE}
-                isDisabled={!isToggleDisabled}
-              >
+              <Tooltip content={JSToggleTooltip} isDisabled={!JSToggleTooltip}>
                 <span>
                   <ToggleButton
-                    className={classNames("t--js-toggle", {
+                    className={classNames({
+                      "t--js-toggle": true,
                       "is-active": isDynamic,
+                      "!h-[20px]": experimentalJSToggle,
                     })}
                     icon="js-toggle-v2"
                     isDisabled={isToggleDisabled}
@@ -806,7 +830,7 @@ const PropertyControl = memo((props: Props) => {
                         ),
                       )
                     }
-                    size="sm"
+                    size={experimentalJSToggle ? "md" : "sm"}
                   />
                 </span>
               </Tooltip>
@@ -855,6 +879,7 @@ const PropertyControl = memo((props: Props) => {
             customJSControl,
             additionAutocomplete,
             hideEvaluatedValue(),
+            props.isSearchResult,
           )}
           <PropertyPaneHelperText helperText={helperText} />
         </ControlWrapper>

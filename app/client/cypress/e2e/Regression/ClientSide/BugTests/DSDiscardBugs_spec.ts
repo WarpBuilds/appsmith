@@ -1,4 +1,7 @@
 import * as _ from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  AppSidebarButton,
+} from "../../../../support/Pages/EditorNavigation";
 
 let dsName: any;
 
@@ -18,9 +21,9 @@ describe("datasource unsaved changes popup shows even without changes", function
       _.dataSources.SaveDatasource();
       _.agHelper.Sleep();
       _.dataSources.EditDatasource();
-      _.agHelper.GoBack();
-      _.agHelper.AssertElementVisible(_.dataSources._activeDS);
-      _.dataSources.DeleteDatasouceFromActiveTab(dsName);
+      _.dataSources.cancelDSEditAndAssertModalPopUp(false);
+      _.agHelper.AssertElementVisibility(_.dataSources._activeDS);
+      _.dataSources.DeleteDatasourceFromWithinDS(dsName);
     });
   });
 
@@ -42,28 +45,9 @@ describe("datasource unsaved changes popup shows even without changes", function
       // Even if headers, and query parameters are being initialized, we shouldnt see the popup
       // as those are not initialized by user
       _.dataSources.EditDatasource();
-      _.agHelper.GoBack();
-      _.agHelper.AssertElementVisible(_.dataSources._activeDS);
-
-      // Edit DS from active tab and add oauth2 details
-      _.dataSources.EditDSFromActiveTab(dsName);
-      _.dataSources.AddOAuth2AuthorizationCodeDetails(
-        testString,
-        testString,
-        testString,
-        testString,
-      );
-      _.dataSources.UpdateDatasource();
-      _.agHelper.Sleep();
-
-      // Now edit DS, and ensure that discard popup is not shown on back button click
-      // Even if custom authentication params are being initialized, we shouldnt see the popup
-      // as those are not initialized by user
-      _.dataSources.EditDatasource();
-      _.agHelper.GoBack();
-      _.agHelper.AssertElementVisible(_.dataSources._activeDS);
-
-      _.dataSources.DeleteDatasouceFromActiveTab(dsName);
+      _.dataSources.cancelDSEditAndAssertModalPopUp(false);
+      _.agHelper.AssertElementVisibility(_.dataSources._activeDS);
+      _.dataSources.DeleteDatasourceFromWithinDS(dsName);
     });
   });
 
@@ -87,7 +71,7 @@ describe("datasource unsaved changes popup shows even without changes", function
       // Assert that popup is visible
       _.dataSources.SaveDSFromDialog(false);
 
-      _.dataSources.DeleteDatasouceFromActiveTab(dsName);
+      _.dataSources.DeleteDatasourceFromWithinDS(dsName);
     });
   });
 
@@ -111,7 +95,7 @@ describe("datasource unsaved changes popup shows even without changes", function
       // Assert that popup is visible
       _.dataSources.cancelDSEditAndAssertModalPopUp(true, false);
 
-      _.dataSources.DeleteDatasouceFromActiveTab(dsName);
+      _.dataSources.DeleteDatasourceFromWithinDS(dsName);
     });
   });
 
@@ -134,7 +118,7 @@ describe("datasource unsaved changes popup shows even without changes", function
       // Assert that popup is visible
       _.dataSources.cancelDSEditAndAssertModalPopUp(false, false);
 
-      _.dataSources.DeleteDatasouceFromActiveTab(dsName);
+      _.dataSources.DeleteDatasourceFromWithinDS(dsName);
     });
   });
 
@@ -154,7 +138,7 @@ describe("datasource unsaved changes popup shows even without changes", function
       // Edit datasource, change connection string uri param and click on back button
       _.dataSources.EditDatasource();
 
-      _.agHelper.UpdateInputValue(_.dataSources._host, "jargons");
+      _.agHelper.UpdateInputValue(_.dataSources._host(), "jargons");
 
       // Assert that popup is visible
       _.dataSources.cancelDSEditAndAssertModalPopUp(true, false);
@@ -164,11 +148,17 @@ describe("datasource unsaved changes popup shows even without changes", function
 
       // validate the input field value still remains as the saved value
       _.agHelper.ValidateFieldInputValue(
-        _.dataSources._host,
-        _.tedTestConfig.dsValues.staging.mongo_host,
+        _.dataSources._host(),
+        _.dataManager.dsValues.Staging.mongo_host,
+      );
+      _.agHelper.GetNClick(
+        _.dataSources._cancelEditDatasourceButton,
+        0,
+        true,
+        200,
       );
 
-      _.dataSources.DeleteDatasouceFromActiveTab(dsName);
+      _.dataSources.DeleteDatasourceFromWithinDS(dsName);
     });
   });
 

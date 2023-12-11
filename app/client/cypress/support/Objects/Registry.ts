@@ -23,10 +23,12 @@ import { EmbedSettings } from "../Pages/AppSettings/EmbedSettings";
 import { Templates } from "../Pages/Templates";
 import { Onboarding } from "../Pages/Onboarding";
 import { AutoLayout } from "../Pages/AutoLayout";
-import { TEDTestConfigs } from "./TestConfigs";
+import { DataManager } from "./DataManager";
 import { AssertHelper } from "../Pages/AssertHelper";
 import { ReusableHelper } from "./ReusableHelper";
 import { Tabs } from "../Pages/Tabs";
+import { GsheetHelper } from "../Pages/GSheetHelper";
+import { CommunityTemplates } from "../Pages/CommunityTemplates";
 
 export class ObjectsRegistry {
   private static aggregateHelper__: AggregateHelper;
@@ -253,12 +255,28 @@ export class ObjectsRegistry {
     return ObjectsRegistry.autoLayout__;
   }
 
-  private static tedTestConfigs__: TEDTestConfigs;
-  static get TEDTestConfigs(): TEDTestConfigs {
-    if (ObjectsRegistry.tedTestConfigs__ === undefined) {
-      ObjectsRegistry.tedTestConfigs__ = new TEDTestConfigs();
+  private static dataManager__: DataManager;
+  static get DataManager(): DataManager {
+    if (ObjectsRegistry.dataManager__ === undefined) {
+      ObjectsRegistry.dataManager__ = new DataManager();
     }
-    return ObjectsRegistry.tedTestConfigs__;
+    return ObjectsRegistry.dataManager__;
+  }
+
+  private static gsheetHelper__: GsheetHelper;
+  static get GSheetHelper(): GsheetHelper {
+    if (ObjectsRegistry.gsheetHelper__ === undefined) {
+      ObjectsRegistry.gsheetHelper__ = new GsheetHelper();
+    }
+    return ObjectsRegistry.gsheetHelper__;
+  }
+
+  private static communityTemplates__: CommunityTemplates;
+  static get CommunityTemplates(): CommunityTemplates {
+    if (ObjectsRegistry.communityTemplates__ === undefined) {
+      ObjectsRegistry.communityTemplates__ = new CommunityTemplates();
+    }
+    return ObjectsRegistry.communityTemplates__;
   }
 }
 

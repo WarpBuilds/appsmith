@@ -1,5 +1,4 @@
 import {
-  entityExplorer,
   locators,
   agHelper,
   deployMode,
@@ -7,6 +6,9 @@ import {
   pageSettings,
   draggableWidgets,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
 
 describe("Dynamic Height Width validation for Visibility", function () {
   before(() => {
@@ -14,11 +16,15 @@ describe("Dynamic Height Width validation for Visibility", function () {
   });
   it("1. Validating visbility/invisiblity of widget with dynamic height feature", function () {
     //changing the Text Name and verifying
-    entityExplorer.SelectEntityByName("Container1", "Widgets");
+    EditorNavigation.SelectEntityByName("Container1", EntityType.Widget);
     propPane.SelectPropertiesDropDown("height", "Auto Height");
-    entityExplorer.SelectEntityByName("Input1", "Container1");
+    EditorNavigation.SelectEntityByName("Input1", EntityType.Widget, {}, [
+      "Container1",
+    ]);
     propPane.SelectPropertiesDropDown("height", "Auto Height");
-    entityExplorer.SelectEntityByName("Input2", "Container1");
+    EditorNavigation.SelectEntityByName("Input2", EntityType.Widget, {}, [
+      "Container1",
+    ]);
     propPane.SelectPropertiesDropDown("height", "Auto Height");
     agHelper.Sleep(2000);
     agHelper
@@ -56,7 +62,7 @@ describe("Dynamic Height Width validation for Visibility", function () {
           .then((updatedContainerHeight: number) => {
             expect(currentContainerHeight).to.not.equal(updatedContainerHeight);
             agHelper.AssertElementAbsence(propPane._labelContains("On"));
-            agHelper.AssertElementVisible(propPane._labelContains("Off"));
+            agHelper.AssertElementVisibility(propPane._labelContains("Off"));
             agHelper.GetNClick(pageSettings.locators._setHomePageToggle);
             agHelper.Sleep(2000);
             agHelper
@@ -68,7 +74,7 @@ describe("Dynamic Height Width validation for Visibility", function () {
                   updatedContainerHeight,
                 );
                 agHelper.AssertElementAbsence(propPane._labelContains("Off"));
-                agHelper.AssertElementVisible(propPane._labelContains("On"));
+                agHelper.AssertElementVisibility(propPane._labelContains("On"));
               });
           });
       });

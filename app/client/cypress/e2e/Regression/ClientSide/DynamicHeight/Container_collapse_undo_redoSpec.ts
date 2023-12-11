@@ -1,25 +1,32 @@
 import {
-  entityExplorer,
-  locators,
   agHelper,
+  assertHelper,
   draggableWidgets,
+  locators,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
 
 describe("Dynamic Height Width validation", function () {
   it("1. Validate change with auto height width for widgets", function () {
     const modifierKey = Cypress.platform === "darwin" ? "meta" : "ctrl";
     agHelper.AddDsl("DynamicHeightDefaultHeightdsl");
 
-    entityExplorer.SelectEntityByName("Container1");
+    EditorNavigation.SelectEntityByName("Container1", EntityType.Widget);
     agHelper
       .GetWidgetCSSHeight(
         locators._widgetInDeployed(draggableWidgets.CONTAINER),
       )
       .then((initialContainerHeight: number) => {
         // Select the Text Widget and capture its initial height
-        entityExplorer.SelectEntityByName("Button1", "Container1");
+        EditorNavigation.SelectEntityByName("Button1", EntityType.Widget, {}, [
+          "Container1",
+        ]);
         agHelper.PressDelete();
         agHelper.WaitUntilAllToastsDisappear();
+        assertHelper.AssertNetworkStatus("updateLayout");
+        agHelper.Sleep(2000);
         agHelper
           .GetWidgetCSSHeight(
             locators._widgetInDeployed(draggableWidgets.CONTAINER),
@@ -27,7 +34,9 @@ describe("Dynamic Height Width validation", function () {
           .then((updatedContainerHeight: number) => {
             expect(initialContainerHeight).to.not.equal(updatedContainerHeight);
             expect(updatedContainerHeight).to.equal("100px");
-            agHelper.TypeText(locators._body, `{${modifierKey}}z`, 0, true);
+            agHelper.TypeText(locators._body, `{${modifierKey}}z`, {
+              parseSpecialCharSeq: true,
+            });
             agHelper.Sleep(2000);
             agHelper
               .GetWidgetCSSHeight(

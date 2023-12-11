@@ -6,6 +6,10 @@ import {
   appSettings,
   locators,
 } from "../../../../support/Objects/ObjectsCore";
+import {
+  AppSidebar,
+  AppSidebarButton,
+} from "../../../../support/Pages/EditorNavigation";
 
 describe("Test Top + Inline navigation style", function () {
   before(() => {
@@ -15,11 +19,9 @@ describe("Test Top + Inline navigation style", function () {
 
     assertHelper
       .WaitForNetworkCall("@importNewApplication")
-      .then((interception) => {
+      .then((response) => {
         agHelper.Sleep();
-
-        const { isPartialImport } = interception.response.body.data;
-
+        const { isPartialImport } = response.body.data;
         if (isPartialImport) {
           homePage.AssertNCloseImport();
         } else {
@@ -29,7 +31,7 @@ describe("Test Top + Inline navigation style", function () {
   });
 
   it("1. Change 'Orientation' to 'Top', and 'Nav style' to 'Inline', page navigation items should appear inline", () => {
-    agHelper.GetNClick(appSettings.locators._appSettings);
+    AppSidebar.navigate(AppSidebarButton.Settings);
     agHelper.GetNClick(appSettings.locators._navigationSettingsTab);
     agHelper.GetNClick(
       appSettings.locators._navigationSettings._orientationOptions._top,
@@ -38,19 +40,21 @@ describe("Test Top + Inline navigation style", function () {
     );
     agHelper.GetNClick(appSettings.locators._navStyleOptions._inline, 0, true);
     deployMode.DeployApp();
-    agHelper.AssertElementVisible(appSettings.locators._header);
+    agHelper.AssertElementVisibility(appSettings.locators._header);
     agHelper.AssertElementAbsence(appSettings.locators._topStacked);
-    agHelper.AssertElementVisible(appSettings.locators._topInline);
+    agHelper.AssertElementVisibility(appSettings.locators._topInline);
     //More button should exist and when clicked on it, it should open the dropdown with rest of the pages
     // 'More' button should exist
-    agHelper.AssertElementVisible(appSettings.locators._topInlineMoreButton);
+    agHelper.AssertElementVisibility(appSettings.locators._topInlineMoreButton);
     // Should open the dropdown
     agHelper.GetNClick(appSettings.locators._topInlineMoreButton, 0, true);
-    agHelper.AssertElementVisible(appSettings.locators._topInlineMoreDropdown);
+    agHelper.AssertElementVisibility(
+      appSettings.locators._topInlineMoreDropdown,
+    );
     agHelper
       .GetElement(appSettings.locators._topInlineMoreDropdown)
       .should("have.class", "bp3-overlay-open");
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(
       appSettings.locators._topInlineMoreDropdownItem,
     );
     agHelper
@@ -75,7 +79,7 @@ describe("Test Top + Inline navigation style", function () {
     // open the dropdown again
     agHelper.GetNClick(appSettings.locators._topInlineMoreButton, 0, true);
     // verify that the current page is active
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(
       appSettings.locators._getActivePage(pageName),
     );
     //Update the Page and check the active page
@@ -86,7 +90,7 @@ describe("Test Top + Inline navigation style", function () {
       0,
       true,
     );
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(
       appSettings.locators._getActivePage(pageNameUpdated),
     );
   });
@@ -101,7 +105,7 @@ describe("Test Top + Inline navigation style", function () {
     );
     // Changing color style to theme should change navigation's background color
     deployMode.NavigateBacktoEditor();
-    agHelper.GetNClick(appSettings.locators._appSettings);
+    AppSidebar.navigate(AppSidebarButton.Settings);
     agHelper.GetNClick(appSettings.locators._navigationSettingsTab);
     agHelper.GetNClick(appSettings.locators._colorStyleOptions._theme, 0, true);
     deployMode.DeployApp();
@@ -112,10 +116,10 @@ describe("Test Top + Inline navigation style", function () {
       0,
     );
     //Application name, share button, edit button, and user dropdown should be available in the app header
-    agHelper.AssertElementVisible(appSettings.locators._applicationName);
-    agHelper.AssertElementVisible(appSettings.locators._shareButton);
-    agHelper.AssertElementVisible(locators._backToEditor);
-    agHelper.AssertElementVisible(homePage._profileMenu);
+    agHelper.AssertElementVisibility(appSettings.locators._applicationName);
+    agHelper.AssertElementVisibility(appSettings.locators._shareButton);
+    agHelper.AssertElementVisibility(locators._backToEditor);
+    agHelper.AssertElementVisibility(homePage._profileMenu);
   });
 
   it("4. Share button should open the share modal, edit button should take us back to the editor, and clicking on user profile button should open up the dropdown menu", () => {
@@ -124,11 +128,11 @@ describe("Test Top + Inline navigation style", function () {
       `${appSettings.locators._header} ${appSettings.locators._shareButton}`,
     );
     agHelper.Sleep();
-    agHelper.AssertElementVisible(appSettings.locators._modal);
+    agHelper.AssertElementVisibility(appSettings.locators._modal);
     agHelper.GetNClick(appSettings.locators._modalClose, 0, true);
     // User profile dropdown
     agHelper.GetNClick(homePage._profileMenu);
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(
       appSettings.locators._userProfileDropdownMenu,
     );
   });

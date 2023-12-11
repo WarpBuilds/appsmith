@@ -36,7 +36,7 @@ import {
   createMessage,
   SAVE_HOTKEY_TOASTER_MESSAGE,
 } from "@appsmith/constants/messages";
-import { setPreviewModeAction } from "actions/editorActions";
+import { setPreviewModeInitAction } from "actions/editorActions";
 import { previewModeSelector } from "selectors/editorSelectors";
 import { getExplorerPinned } from "selectors/explorerSelector";
 import { setExplorerPinnedAction } from "actions/explorerActions";
@@ -48,8 +48,10 @@ import { SelectionRequestType } from "sagas/WidgetSelectUtils";
 import { toast } from "design-system";
 import { showDebuggerFlag } from "selectors/debuggerSelectors";
 import { getIsFirstTimeUserOnboardingEnabled } from "selectors/onboardingSelectors";
+import WalkthroughContext from "components/featureWalkthrough/walkthroughContext";
+import { protectedModeSelector } from "selectors/gitSyncSelectors";
 
-type Props = {
+interface Props {
   copySelectedWidget: () => void;
   pasteCopiedWidget: (mouseLocation: { x: number; y: number }) => void;
   deleteSelectedWidget: () => void;
@@ -71,14 +73,15 @@ type Props = {
   redo: () => void;
   appMode?: APP_MODE;
   isPreviewMode: boolean;
-  setPreviewModeAction: (shouldSet: boolean) => void;
+  isProtectedMode: boolean;
+  setPreviewModeInitAction: (shouldSet: boolean) => void;
   isExplorerPinned: boolean;
   isSignpostingEnabled: boolean;
   setExplorerPinnedAction: (shouldPinned: boolean) => void;
   showCommitModal: () => void;
   getMousePosition: () => { x: number; y: number };
   hideInstaller: () => void;
-};
+}
 
 @HotkeysTarget
 class GlobalHotKeys extends React.Component<Props> {
@@ -118,6 +121,11 @@ class GlobalHotKeys extends React.Component<Props> {
   }
 
   public renderHotkeys() {
+    const { isOpened: isWalkthroughOpened } = this.context ?? {};
+    const { isProtectedMode } = this.props;
+    // If walkthrough is open disable shortcuts
+    if (isWalkthroughOpened || isProtectedMode) return <Hotkeys />;
+
     return (
       <Hotkeys>
         <Hotkey
@@ -256,7 +264,7 @@ class GlobalHotKeys extends React.Component<Props> {
             this.props.closeProppane();
             this.props.closeTableFilterProppane();
             e.preventDefault();
-            this.props.setPreviewModeAction(false);
+            this.props.setPreviewModeInitAction(false);
           }}
         />
         <Hotkey
@@ -329,7 +337,7 @@ class GlobalHotKeys extends React.Component<Props> {
           global
           label="Preview Mode"
           onKeyDown={() => {
-            this.props.setPreviewModeAction(!this.props.isPreviewMode);
+            this.props.setPreviewModeInitAction(!this.props.isPreviewMode);
           }}
         />
         <Hotkey
@@ -365,6 +373,7 @@ const mapStateToProps = (state: AppState) => ({
   isDebuggerOpen: showDebuggerFlag(state),
   appMode: getAppMode(state),
   isPreviewMode: previewModeSelector(state),
+  isProtectedMode: protectedModeSelector(state),
   isExplorerPinned: getExplorerPinned(state),
   isSignpostingEnabled: getIsFirstTimeUserOnboardingEnabled(state),
 });
@@ -390,16 +399,21 @@ const mapDispatchToProps = (dispatch: any) => {
     executeAction: () => dispatch(runActionViaShortcut()),
     undo: () => dispatch(undoAction()),
     redo: () => dispatch(redoAction()),
-    setPreviewModeAction: (shouldSet: boolean) =>
-      dispatch(setPreviewModeAction(shouldSet)),
+    setPreviewModeInitAction: (shouldSet: boolean) =>
+      dispatch(setPreviewModeInitAction(shouldSet)),
     setExplorerPinnedAction: (shouldSet: boolean) =>
       dispatch(setExplorerPinnedAction(shouldSet)),
     showCommitModal: () =>
       dispatch(
-        setIsGitSyncModalOpen({ isOpen: true, tab: GitSyncModalTab.DEPLOY }),
+        setIsGitSyncModalOpen({
+          isOpen: true,
+          tab: GitSyncModalTab.DEPLOY,
+        }),
       ),
     hideInstaller: () => dispatch(toggleInstaller(false)),
   };
 };
+
+GlobalHotKeys.contextType = WalkthroughContext;
 
 export default connect(mapStateToProps, mapDispatchToProps)(GlobalHotKeys);

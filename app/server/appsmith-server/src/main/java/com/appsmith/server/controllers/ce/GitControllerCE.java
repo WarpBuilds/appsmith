@@ -12,6 +12,7 @@ import com.appsmith.server.domains.GitApplicationMetadata;
 import com.appsmith.server.domains.GitAuth;
 import com.appsmith.server.domains.GitProfile;
 import com.appsmith.server.dtos.ApplicationImportDTO;
+import com.appsmith.server.dtos.BranchProtectionRequestDTO;
 import com.appsmith.server.dtos.GitCommitDTO;
 import com.appsmith.server.dtos.GitConnectDTO;
 import com.appsmith.server.dtos.GitDeployKeyDTO;
@@ -19,11 +20,15 @@ import com.appsmith.server.dtos.GitDocsDTO;
 import com.appsmith.server.dtos.GitMergeDTO;
 import com.appsmith.server.dtos.GitPullDTO;
 import com.appsmith.server.dtos.ResponseDTO;
+import com.appsmith.server.exceptions.AppsmithError;
+import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.helpers.GitDeployKeyGenerator;
 import com.appsmith.server.services.GitService;
 import com.fasterxml.jackson.annotation.JsonView;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.BooleanUtils;
+import org.eclipse.jgit.lib.BranchTrackingStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -158,7 +163,7 @@ public class GitControllerCE {
             @PathVariable String defaultApplicationId,
             @RequestParam(name = FieldName.BRANCH_NAME, required = false) String branchName) {
         log.debug("Going to checkout to branch {} application {} ", branchName, defaultApplicationId);
-        return service.checkoutBranch(defaultApplicationId, branchName)
+        return service.checkoutBranch(defaultApplicationId, branchName, true)
                 .map(result -> new ResponseDTO<>(HttpStatus.OK.value(), result, null));
     }
 
@@ -195,9 +200,21 @@ public class GitControllerCE {
     @GetMapping("/status/app/{defaultApplicationId}")
     public Mono<ResponseDTO<GitStatusDTO>> getStatus(
             @PathVariable String defaultApplicationId,
-            @RequestHeader(name = FieldName.BRANCH_NAME, required = false) String branchName) {
+            @RequestHeader(name = FieldName.BRANCH_NAME, required = false) String branchName,
+            @RequestParam(required = false, defaultValue = "true") Boolean compareRemote) {
         log.debug("Going to get status for default application {}, branch {}", defaultApplicationId, branchName);
-        return service.getStatus(defaultApplicationId, branchName)
+        return service.getStatus(defaultApplicationId, compareRemote, branchName)
+                .map(result -> new ResponseDTO<>(HttpStatus.OK.value(), result, null));
+    }
+
+    @JsonView(Views.Public.class)
+    @GetMapping("/fetch/remote/app/{defaultApplicationId}")
+    public Mono<ResponseDTO<BranchTrackingStatus>> fetchRemoteChanges(
+            @PathVariable String defaultApplicationId,
+            @RequestHeader(name = FieldName.BRANCH_NAME, required = false) String branchName) {
+        log.debug(
+                "Going to compare with remote for default application {}, branch {}", defaultApplicationId, branchName);
+        return service.fetchRemoteChanges(defaultApplicationId, branchName, true)
                 .map(result -> new ResponseDTO<>(HttpStatus.OK.value(), result, null));
     }
 
@@ -290,5 +307,28 @@ public class GitControllerCE {
     @GetMapping("/doc-urls")
     public Mono<ResponseDTO<List<GitDocsDTO>>> getGitDocs() {
         return service.getGitDocUrls().map(gitDocDTO -> new ResponseDTO<>(HttpStatus.OK.value(), gitDocDTO, null));
+    }
+
+    @JsonView(Views.Public.class)
+    @PostMapping("/auto-commit/app/{defaultApplicationId}")
+    public Mono<ResponseDTO<String>> autoCommitDSLMigration(
+            @PathVariable String defaultApplicationId, @RequestHeader(name = FieldName.BRANCH_NAME) String branchName) {
+        return Mono.error(new AppsmithException(AppsmithError.UNSUPPORTED_OPERATION));
+    }
+
+    @JsonView(Views.Public.class)
+    @PostMapping("/branch/app/{defaultApplicationId}/protected")
+    public Mono<ResponseDTO<List<String>>> updateProtectedBranches(
+            @PathVariable String defaultApplicationId,
+            @RequestBody @Valid BranchProtectionRequestDTO branchProtectionRequestDTO) {
+        return service.updateProtectedBranches(defaultApplicationId, branchProtectionRequestDTO.getBranchNames())
+                .map(data -> new ResponseDTO<>(HttpStatus.OK.value(), data, null));
+    }
+
+    @JsonView(Views.Public.class)
+    @GetMapping("/branch/app/{defaultApplicationId}/protected")
+    public Mono<ResponseDTO<List<String>>> getProtectedBranches(@PathVariable String defaultApplicationId) {
+        return service.getProtectedBranches(defaultApplicationId)
+                .map(list -> new ResponseDTO<>(HttpStatus.OK.value(), list, null));
     }
 }

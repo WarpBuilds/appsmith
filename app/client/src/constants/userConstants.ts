@@ -2,7 +2,7 @@ export const ANONYMOUS_USERNAME = "anonymousUser";
 
 type Gender = "MALE" | "FEMALE";
 
-export type User = {
+export interface User {
   email: string;
   workspaceIds: string[];
   username: string;
@@ -18,7 +18,8 @@ export type User = {
   adminSettingsVisible?: boolean;
   isAnonymous?: boolean;
   isIntercomConsentGiven?: boolean;
-};
+  emailVerified: boolean;
+}
 
 export interface UserApplication {
   id: string;
@@ -40,13 +41,14 @@ export const DefaultCurrentUserDetails: User = {
   enableTelemetry: false,
   adminSettingsVisible: false,
   isIntercomConsentGiven: false,
+  emailVerified: false,
 };
 
 // TODO keeping it here instead of the USER_API since it leads to cyclic deps errors during tests
 export const USER_PHOTO_URL = "v1/users/photo";
 export const USER_PHOTO_ASSET_URL = "v1/assets";
 
-export type UserRoleUsecasePayload = {
+export interface UserRoleUsecasePayload {
   role: string;
   useCase: string;
-};
+}

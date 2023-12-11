@@ -1,17 +1,24 @@
-import { featureFlagIntercept } from "../../../support/Objects/FeatureFlags";
 import {
   agHelper,
   assertHelper,
-  propPane,
+  dataManager,
   dataSources,
-  entityItems,
+  deployMode,
   draggableWidgets,
   entityExplorer,
+  entityItems,
+  locators,
+  propPane,
   table,
 } from "../../../support/Objects/ObjectsCore";
 import { Widgets } from "../../../support/Pages/DataSources";
 import oneClickBindingLocator from "../../../locators/OneClickBindingLocator";
 import { OneClickBinding } from "../../Regression/ClientSide/OneClickBinding/spec_utility";
+import EditorNavigation, {
+  EntityType,
+  PageLeftPane,
+} from "../../../support/Pages/EditorNavigation";
+import PageList from "../../../support/Pages/PageList";
 
 const oneClickBinding = new OneClickBinding();
 
@@ -88,12 +95,6 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
       dataSources.RunQuery();
     });
     //agHelper.ActionContextMenuWithInPane("Delete"); Since next case can continue in same template
-    featureFlagIntercept(
-      {
-        ab_ds_binding_enabled: false,
-      },
-      false,
-    );
     agHelper.RefreshPage();
   });
 
@@ -123,6 +124,9 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
       "IS_NULLABLE",
       "SS_DATA_TYPE",
     ]);
+
+    runQueryNValidateResponseData("SELECT COUNT(*) FROM Amazon_Sales;", "10");
+
     agHelper.ActionContextMenuWithInPane({
       action: "Delete",
       entityType: entityItems.Query,
@@ -134,10 +138,10 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
     dataSources.CreateQueryFromOverlay(dsName, query, "selectSimpsons"); //Creating query from EE overlay
     dataSources.RunQueryNVerifyResponseViews(10); //Could be 99 in CI, to check aft init load script is working
 
-    dataSources.AddSuggesstedWidget(Widgets.Table);
+    dataSources.AddSuggestedWidget(Widgets.Table);
     agHelper.GetNClick(propPane._deleteWidget);
 
-    entityExplorer.SelectEntityByName("selectSimpsons", "Queries/JS");
+    EditorNavigation.SelectEntityByName("selectSimpsons", EntityType.Query);
     agHelper.ActionContextMenuWithInPane({
       action: "Delete",
       entityType: entityItems.Query,
@@ -148,7 +152,9 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
   it.skip("3.One click binding - should check that queries are created and bound to table widget properly", () => {
     entityExplorer.DragDropWidgetNVerify(draggableWidgets.TABLE, 450, 200);
 
-    oneClickBinding.ChooseAndAssertForm(dsName, dsName, "Simpsons", "title");
+    oneClickBinding.ChooseAndAssertForm(dsName, dsName, "Simpsons", {
+      searchableColumn: "title",
+    });
 
     agHelper.GetNClick(oneClickBindingLocator.connectData);
 
@@ -172,7 +178,7 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
       agHelper.AssertElementExist(table._headerCell(column));
     });
 
-    agHelper.GetNClick(table._addNewRow, 0, true);
+    table.AddNewRow();
 
     table.EditTableCell(0, 1, "S01E01", false);
 
@@ -218,10 +224,7 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
     assertHelper.AssertNetworkStatus("@postExecute");
 
     agHelper.Sleep(500);
-
-    agHelper.ClearTextField(table._searchInput);
-
-    agHelper.TypeText(table._searchInput, "Westworld");
+    agHelper.ClearNType(table._searchInput, "Westworld");
 
     assertHelper.AssertNetworkStatus("@postExecute");
 
@@ -229,9 +232,7 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
 
     agHelper.AssertElementExist(table._bodyCell("Westworld"));
 
-    agHelper.ClearTextField(table._searchInput);
-
-    agHelper.TypeText(table._searchInput, "Expanse");
+    agHelper.ClearNType(table._searchInput, "Expanse");
 
     assertHelper.AssertNetworkStatus("@postExecute");
 
@@ -240,19 +241,163 @@ describe("Validate MsSQL connection & basic querying with UI flows", () => {
     agHelper.AssertElementAbsence(table._bodyCell("Expanse"));
   });
 
-  after("Verify Deletion of the datasource", () => {
-    entityExplorer.SelectEntityByName(dsName, "Datasources");
-    entityExplorer.ActionContextMenuByEntityName({
-      entityNameinLeftSidebar: dsName,
-      action: "Delete",
-      entityType: entityItems.Datasource,
+  it("4. MsSQL connection errors", () => {
+    let dataSourceName: string;
+    dataSources.NavigateToDSCreateNew();
+    agHelper.GenerateUUID();
+    cy.get("@guid").then((uid) => {
+      dataSources.CreatePlugIn("Microsoft SQL Server");
+      dataSourceName = "MsSQL" + " " + uid;
+      agHelper.RenameWithInPane(dataSourceName, false);
+
+      dataSources.TestDatasource(false);
+      agHelper.ValidateToastMessage("Missing endpoint.");
+      agHelper.ValidateToastMessage("Missing username for authentication.");
+      agHelper.ValidateToastMessage("Missing password for authentication.");
+      agHelper.ClearTextField(dataSources._databaseName);
+      dataSources.TestDatasource(false);
+      agHelper.WaitUntilAllToastsDisappear();
+      agHelper.UpdateInputValue(
+        dataSources._host(),
+        dataManager.dsValues[dataManager.defaultEnviorment].mssql_host,
+      );
+      agHelper.UpdateInputValue(
+        dataSources._username,
+        dataManager.dsValues[dataManager.defaultEnviorment].mssql_username,
+      );
+      agHelper.UpdateInputValue(
+        dataSources._password,
+        dataManager.dsValues[dataManager.defaultEnviorment].mssql_password,
+      );
+      agHelper.GetNClick(locators._visibleTextSpan("Read only"));
+      dataSources.ValidateNSelectDropdown(
+        "SSL mode",
+        "Enabled with no verify",
+        "Disable",
+      );
+      dataSources.TestSaveDatasource();
+      dataSources.AssertDataSourceInfo(["READ_ONLY", "host.docker.internal"]);
+      dataSources.DeleteDSDirectly(200, false);
     });
+  });
+
+  it("5. Add new Page and generate CRUD template using created datasource", () => {
+    PageList.AddNewPage();
+    PageList.AddNewPage("Generate page with data");
+    agHelper.GetNClick(dataSources._selectDatasourceDropdown);
+    agHelper.GetNClickByContains(dataSources._dropdownOption, dsName);
+
+    assertHelper.AssertNetworkStatus("@getDatasourceStructure"); //Making sure table dropdown is populated
+    agHelper.GetNClick(dataSources._selectTableDropdown, 0, true);
+    agHelper.GetNClickByContains(
+      dataSources._dropdownOption,
+      "dbo.amazon_sales",
+    );
+
+    GenerateCRUDNValidateDeployPage(
+      "348f344247b0c1a935b1223072ef9d8a",
+      "CLASSIC TOY TRAIN SET TRACK CARRIAGES LIGHT" +
+        " ENGINE BOXED BOYS KIDS BATTERY",
+      "ccf",
+      "uniq_id",
+    );
+
+    deployMode.NavigateBacktoEditor();
+    table.WaitUntilTableLoad();
+    //Delete the test data
+    PageLeftPane.expandCollapseItem("Pages");
+    entityExplorer.ActionContextMenuByEntityName({
+      entityNameinLeftSidebar: "Page2",
+      action: "Delete",
+      entityType: entityItems.Page,
+    });
+
+    //Should not be able to delete ds until app is published again
+    //coz if app is published & shared then deleting ds may cause issue, So!
+    dataSources.DeleteDatasourceFromWithinDS(dsName, 409);
+    agHelper.WaitUntilAllToastsDisappear();
+    deployMode.DeployApp(locators._emptyPageTxt);
+    agHelper.Sleep(3000);
+    deployMode.NavigateBacktoEditor();
+  });
+
+  it("6. Generate CRUD page from datasource present in ACTIVE section", function () {
+    EditorNavigation.SelectEntityByName(dsName, EntityType.Datasource);
+    agHelper.GetNClick(dataSources._selectTableDropdown, 0, true);
+    agHelper.GetNClickByContains(
+      dataSources._dropdownOption,
+      "dbo.amazon_sales",
+    );
+
+    GenerateCRUDNValidateDeployPage(
+      "348f344247b0c1a935b1223072ef9d8a",
+      "CLASSIC TOY TRAIN SET TRACK CARRIAGES LIGHT" +
+        " ENGINE BOXED BOYS KIDS BATTERY",
+      "ccf",
+      "uniq_id",
+    );
+
+    deployMode.NavigateBacktoEditor();
+    table.WaitUntilTableLoad();
+  });
+
+  after("Verify Deletion of the datasource", () => {
+    cy.intercept("DELETE", "/api/v1/datasources/*").as("deleteDatasource"); //Since intercept from before is not working
+    dataSources.DeleteDatasourceFromWithinDS(dsName, 409); //since CRUD pages are still active
     //dataSources.StopNDeleteContainer(containerName); //commenting to check if MsSQL specific container deletion is causing issues
   });
+
+  function GenerateCRUDNValidateDeployPage(
+    col1Text: string,
+    col2Text: string,
+    col3Text: string,
+    jsonFromHeader: string,
+  ) {
+    agHelper.GetNClick(dataSources._generatePageBtn);
+    assertHelper.AssertNetworkStatus("@replaceLayoutWithCRUDPage", 201);
+    agHelper.AssertContains("Successfully generated a page");
+    assertHelper.AssertNetworkStatus("@postExecute", 200);
+    agHelper.ClickButton("Got it");
+    assertHelper.AssertNetworkStatus("@updateLayout", 200);
+    deployMode.DeployApp(locators._widgetInDeployed("tablewidget"));
+    table.WaitUntilTableLoad();
+
+    //Validating loaded table
+    agHelper.AssertElementExist(dataSources._selectedRow);
+    table.ReadTableRowColumnData(0, 0, "v1", 2000).then(($cellData) => {
+      expect($cellData).to.eq(col1Text);
+    });
+    table.ReadTableRowColumnData(0, 1, "v1", 200).then(($cellData) => {
+      expect($cellData).to.eq(col2Text);
+    });
+    table.ReadTableRowColumnData(0, 2, "v1", 200).then(($cellData) => {
+      expect($cellData).to.eq(col3Text);
+    });
+
+    // Validating loaded JSON form
+    cy.xpath(locators._buttonByText("Update")).then((selector) => {
+      cy.wrap(selector)
+        .invoke("attr", "class")
+        .then((classes) => {
+          expect(classes).not.contain("bp3-disabled");
+        });
+    });
+    dataSources.AssertJSONFormHeader(0, 0, jsonFromHeader);
+  }
 
   function runQueryNValidate(query: string, columnHeaders: string[]) {
     dataSources.EnterQuery(query);
     dataSources.RunQuery();
     dataSources.AssertQueryResponseHeaders(columnHeaders);
+  }
+
+  function runQueryNValidateResponseData(
+    query: string,
+    expectedResponse: string,
+    index = 0,
+  ) {
+    dataSources.EnterQuery(query);
+    dataSources.RunQuery();
+    dataSources.AssertQueryTableResponse(index, expectedResponse);
   }
 });

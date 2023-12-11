@@ -3,6 +3,9 @@ import {
   entityExplorer,
   propPane,
 } from "../../../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../../support/Pages/EditorNavigation";
 
 const widgetsPage = require("../../../../../../locators/Widgets.json");
 const commonlocators = require("../../../../../../locators/commonlocators.json");
@@ -57,13 +60,15 @@ describe(" File Picker Widget", function () {
     // Test for isValid === True
     cy.dragAndDropToWidget("textwidget", "listwidgetv2", {
       x: 550,
-      y: 50,
+      y: 100,
     });
 
-    cy.RenameWidgetFromPropertyPane("textwidget", "Text1", "FilePicker_Widget");
+    propPane.RenameWidget("Text1", "FilePicker_Widget");
+
     propPane.UpdatePropertyFieldValue(
       "Text",
       "{{currentView.FilePicker1.isDirty}}_{{currentView.FilePicker1.isValid}}_{{currentView.FilePicker1.files[0]?.name}}",
+      false,
     );
     cy.get(
       `${widgetSelector("FilePicker_Widget")} ${commonlocators.bodyTextStyle}`,
@@ -128,7 +133,9 @@ describe(" File Picker Widget", function () {
   });
 
   it("3. File Widget Max No of Files", function () {
-    entityExplorer.SelectEntityByName("FilePicker1", "Container1");
+    EditorNavigation.SelectEntityByName("FilePicker1", EntityType.Widget, {}, [
+      "Container1",
+    ]);
     cy.get(widgetsPage.filepickerwidgetv2).click();
     cy.get(commonlocators.AddMoreFiles).should("not.exist");
     cy.get(".uppy-Dashboard-close").click({ force: true });

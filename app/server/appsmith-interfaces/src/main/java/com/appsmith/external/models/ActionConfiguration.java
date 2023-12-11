@@ -27,7 +27,7 @@ import static com.appsmith.external.constants.ActionConstants.DEFAULT_ACTION_EXE
 @Slf4j
 @NoArgsConstructor
 @Document
-public class ActionConfiguration implements AppsmithDomain {
+public class ActionConfiguration implements AppsmithDomain, ExecutableConfiguration {
     private static final int MIN_TIMEOUT_VALUE = 0; // in Milliseconds
     private static final int MAX_TIMEOUT_VALUE = 60000; // in Milliseconds
     private static final String TIMEOUT_OUT_OF_RANGE_MESSAGE =
@@ -83,7 +83,10 @@ public class ActionConfiguration implements AppsmithDomain {
     // Body, the raw class data, is shared with API type actions
     // Represents the values that need to be
     List<JSValue> jsArguments;
+    // This property is being retained right now so that Git does not see commit changes, do not use
+    @Deprecated(forRemoval = true)
     Boolean isAsync;
+
     Boolean isValid;
 
     /*

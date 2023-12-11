@@ -53,6 +53,7 @@ import com.appsmith.server.dtos.Permission;
 import com.appsmith.server.exceptions.AppsmithError;
 import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.helpers.TextUtils;
+import com.appsmith.server.migrations.solutions.UpdateSuperUserMigrationHelper;
 import com.appsmith.server.repositories.CacheableRepositoryHelper;
 import com.appsmith.server.repositories.NewPageRepository;
 import com.appsmith.server.repositories.UserRepository;
@@ -107,12 +108,9 @@ import static com.appsmith.external.helpers.AppsmithBeanUtils.copyNestedNonNullP
 import static com.appsmith.server.acl.AclPermission.ASSIGN_PERMISSION_GROUPS;
 import static com.appsmith.server.acl.AclPermission.MANAGE_INSTANCE_CONFIGURATION;
 import static com.appsmith.server.acl.AclPermission.MANAGE_INSTANCE_ENV;
-import static com.appsmith.server.acl.AclPermission.MANAGE_USERS;
 import static com.appsmith.server.acl.AclPermission.READ_INSTANCE_CONFIGURATION;
 import static com.appsmith.server.acl.AclPermission.READ_PERMISSION_GROUP_MEMBERS;
 import static com.appsmith.server.acl.AclPermission.READ_THEMES;
-import static com.appsmith.server.acl.AclPermission.READ_USERS;
-import static com.appsmith.server.acl.AclPermission.RESET_PASSWORD_USERS;
 import static com.appsmith.server.acl.AppsmithRole.TENANT_ADMIN;
 import static com.appsmith.server.constants.EnvVariables.APPSMITH_ADMIN_EMAILS;
 import static com.appsmith.server.constants.FieldName.DEFAULT_PERMISSION_GROUP;
@@ -124,6 +122,7 @@ import static com.appsmith.server.migrations.DatabaseChangelog1.getUpdatedDynami
 import static com.appsmith.server.migrations.DatabaseChangelog1.installPluginToAllWorkspaces;
 import static com.appsmith.server.migrations.DatabaseChangelog1.makeIndex;
 import static com.appsmith.server.migrations.MigrationHelperMethods.evictPermissionCacheForUsers;
+import static com.appsmith.server.migrations.MigrationHelperMethods.fetchDomainObjectUsingId;
 import static com.appsmith.server.repositories.BaseAppsmithRepositoryImpl.fieldName;
 import static java.lang.Boolean.TRUE;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
@@ -138,6 +137,8 @@ public class DatabaseChangelog2 {
 
     private static final Pattern sheetRangePattern =
             Pattern.compile("https://docs.google.com/spreadsheets/d/([^/]+)/?[^\"]*");
+
+    private final UpdateSuperUserMigrationHelper updateSuperUserMigrationHelper = new UpdateSuperUserMigrationHelper();
 
     @ChangeSet(order = "001", id = "fix-plugin-title-casing", author = "")
     public void fixPluginTitleCasing(MongoTemplate mongoTemplate) {
@@ -2545,7 +2546,11 @@ public class DatabaseChangelog2 {
      * @param cacheableRepositoryHelper
      */
     @ChangeSet(order = "10000", id = "update-super-users", author = "", runAlways = true)
-    public void updateSuperUsers(MongoTemplate mongoTemplate, CacheableRepositoryHelper cacheableRepositoryHelper) {
+    public void updateSuperUsers(
+            MongoTemplate mongoTemplate,
+            CacheableRepositoryHelper cacheableRepositoryHelper,
+            PolicySolution policySolution,
+            PolicyGenerator policyGenerator) {
         // Read the admin emails from the environment and update the super users accordingly
         String adminEmailsStr = System.getenv(String.valueOf(APPSMITH_ADMIN_EMAILS));
 
@@ -2581,7 +2586,8 @@ public class DatabaseChangelog2 {
 
                     if (user == null) {
                         log.info("Creating super user with username {}", email);
-                        user = createNewUser(email, tenant.getId(), mongoTemplate);
+                        user = updateSuperUserMigrationHelper.createNewUser(
+                                email, tenant, instanceAdminPG, mongoTemplate, policySolution, policyGenerator);
                     }
 
                     return user.getId();
@@ -2594,43 +2600,6 @@ public class DatabaseChangelog2 {
 
         Update update = new Update().set(fieldName(QPermissionGroup.permissionGroup.assignedToUserIds), userIds);
         mongoTemplate.updateFirst(permissionGroupQuery, update, PermissionGroup.class);
-    }
-
-    private User createNewUser(String email, String tenantId, MongoTemplate mongoTemplate) {
-        User user = new User();
-        user.setEmail(email);
-        user.setIsEnabled(false);
-        user.setTenantId(tenantId);
-        user.setCreatedAt(Instant.now());
-        user = mongoTemplate.save(user);
-
-        // Assign the user to the default permissions
-        PermissionGroup userManagementPermissionGroup = new PermissionGroup();
-        userManagementPermissionGroup.setName(user.getUsername() + FieldName.SUFFIX_USER_MANAGEMENT_ROLE);
-        // Add CRUD permissions for user to the group
-        userManagementPermissionGroup.setPermissions(Set.of(new Permission(user.getId(), MANAGE_USERS)));
-
-        // Assign the permission group to the user
-        userManagementPermissionGroup.setAssignedToUserIds(Set.of(user.getId()));
-
-        PermissionGroup savedPermissionGroup = mongoTemplate.save(userManagementPermissionGroup);
-
-        Policy readUserPolicy = Policy.builder()
-                .permission(READ_USERS.getValue())
-                .permissionGroups(Set.of(savedPermissionGroup.getId()))
-                .build();
-        Policy manageUserPolicy = Policy.builder()
-                .permission(MANAGE_USERS.getValue())
-                .permissionGroups(Set.of(savedPermissionGroup.getId()))
-                .build();
-        Policy resetPwdPolicy = Policy.builder()
-                .permission(RESET_PASSWORD_USERS.getValue())
-                .permissionGroups(Set.of(savedPermissionGroup.getId()))
-                .build();
-
-        user.setPolicies(Set.of(readUserPolicy, manageUserPolicy, resetPwdPolicy));
-
-        return mongoTemplate.save(user);
     }
 
     @ChangeSet(order = "034", id = "update-bad-theme-state", author = "")
@@ -3020,19 +2989,6 @@ public class DatabaseChangelog2 {
                     domainObject.setDeletedAt(Instant.now());
                     mongoTemplate.save(domainObject);
                 });
-    }
-
-    /**
-     * Here 'id' refers to the ObjectId which is used to uniquely identify each Mongo document. 'path' refers to the
-     * path in the Query DSL object that indicates which field in a document should be matched against the `id`.
-     * `type` is a POJO class type that indicates which collection we are interested in. eg. path=QNewAction
-     * .newAction.id, type=NewAction.class
-     */
-    private <T extends BaseDomain> T fetchDomainObjectUsingId(
-            String id, MongoTemplate mongoTemplate, Path path, Class<T> type) {
-        final T domainObject =
-                mongoTemplate.findOne(query(where(fieldName(path)).is(id)), type);
-        return domainObject;
     }
 
     @ChangeSet(order = "037", id = "indices-recommended-by-mongodb-cloud", author = "")

@@ -26,7 +26,7 @@ describe("Authenticated API Datasource", function () {
     cy.get(".t--save-datasource").click({ force: true });
     cy.contains(URL + "/users");
     agHelper.WaitUntilAllToastsDisappear();
-    dataSources.DeleteDatasouceFromActiveTab(dsName);
+    dataSources.DeleteDatasourceFromWithinDS(dsName);
   });
 
   it("3. Bug: 14181 -Make sure the datasource view mode page does not contain labels with no value.", function () {
@@ -38,30 +38,26 @@ describe("Authenticated API Datasource", function () {
     cy.contains(headers).should("not.exist");
     cy.contains(queryParams).should("not.exist");
     agHelper.WaitUntilAllToastsDisappear();
-    dataSources.DeleteDatasouceFromActiveTab(dsName);
+    dataSources.DeleteDatasourceFromWithinDS(dsName);
   });
 
   it("4. Bug: 18051 - Save and Authorise should return to datasource page in view mode and not new datasource page", () => {
-    cy.NavigateToAPI_Panel();
-    cy.get(apiwidget.createAuthApiDatasource).click();
-    cy.generateUUID().then((uuid) => {
-      cy.renameDatasource(uuid);
-      cy.fillAuthenticatedAPIForm();
-      dataSources.AddOAuth2AuthorizationCodeDetails(
-        testdata.accessTokenUrl,
-        testdata.clientID,
-        testdata.clientSecret,
-        testdata.authorizationURL,
-      );
-      dataSources.AuthAPISaveAndAuthorize();
-      cy.xpath('//input[@name="email"]').type("Test@email.com");
-      cy.xpath('//input[@name="email"]').type("Test");
-      cy.xpath("//input[@name='password']").type("Test@123");
-      cy.xpath("//input[@id='login-submit']").click();
-      cy.wait(2000);
-      cy.reload();
-      cy.get(".t--edit-datasource").should("be.visible");
-      dataSources.DeleteDatasouceFromActiveTab(uuid);
+    dataSources.CreateOAuthClient("authorization_code");
+    agHelper.GenerateUUID();
+    cy.get("@guid").then((uid) => {
+      cy.get("@OAuthClientID").then((clientId) => {
+        cy.get("@OAuthClientSecret").then((clientSecret) => {
+          dataSources.CreateOAuthDatasource(
+            "TED_OAuth" + uid,
+            "AuthCode",
+            clientId,
+            clientSecret,
+          );
+          agHelper.RefreshPage();
+          agHelper.AssertElementVisibility(dataSources._editButton);
+          dataSources.DeleteDatasourceFromWithinDS("TED_OAuth" + uid);
+        });
+      });
     });
   });
 });

@@ -5,10 +5,14 @@ import {
   draggableWidgets,
   entityExplorer,
   entityItems,
-  tedTestConfig,
+  dataManager,
   jsEditor,
   locators,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
+import PageList from "../../../../support/Pages/PageList";
 
 let jsName: any;
 
@@ -65,7 +69,10 @@ describe("Autocomplete tests", () => {
     agHelper.GetNClickByContains(locators._hints, "docUrl");
     cy.get("@jsObjName").then((jsObjName) => {
       jsName = jsObjName;
-      entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+      EditorNavigation.SelectEntityByName(
+        jsName as string,
+        EntityType.JSObject,
+      );
       entityExplorer.ActionContextMenuByEntityName({
         entityNameinLeftSidebar: jsName as string,
         action: "Delete",
@@ -76,7 +83,7 @@ describe("Autocomplete tests", () => {
 
   it("2. Check for bindings not available in other page", () => {
     // dependent on above case: 1st page should have DocumentViewer widget
-    entityExplorer.AddNewPage();
+    PageList.AddNewPage();
     // create js object
     jsEditor.CreateJSObject(jsObjectBody, {
       paste: true,
@@ -93,7 +100,10 @@ describe("Autocomplete tests", () => {
     agHelper.TypeText(locators._codeMirrorTextArea, "ocumentViewer.docUrl");
     cy.get("@jsObjName").then((jsObjName) => {
       jsName = jsObjName;
-      entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+      EditorNavigation.SelectEntityByName(
+        jsName as string,
+        EntityType.JSObject,
+      );
       entityExplorer.ActionContextMenuByEntityName({
         entityNameinLeftSidebar: jsName as string,
         action: "Delete",
@@ -130,22 +140,22 @@ describe("Autocomplete tests", () => {
       // eval function verification
       {
         type: "eval",
-        expected: "eval()",
+        expected: "eval",
         haveOrNotHave: false,
       },
       {
         type: "Blob",
-        expected: "Blob()",
+        expected: "Blob",
         haveOrNotHave: true,
       },
       {
         type: "FormData",
-        expected: "FormData()",
+        expected: "FormData",
         haveOrNotHave: true,
       },
       {
         type: "FileReader",
-        expected: "FileReader()",
+        expected: "FileReader",
         haveOrNotHave: true,
       },
     ];
@@ -167,19 +177,19 @@ describe("Autocomplete tests", () => {
     agHelper.GetNClick(jsEditor._lineinJsEditor(5));
     agHelper.TypeText(locators._codeMirrorTextArea, "this.");
 
-    ["myFun2()", "myVar1", "myVar2"].forEach((element, index) => {
+    ["myFun2", "myVar1", "myVar2"].forEach((element, index) => {
       agHelper.AssertContains(element);
     });
   });
 
   it("5. Api data with array of object autocompletion test", () => {
     apiPage.CreateAndFillApi(
-      tedTestConfig.dsValues[tedTestConfig.defaultEnviorment].mockApiUrl,
+      dataManager.dsValues[dataManager.defaultEnviorment].mockApiUrl,
     );
     agHelper.Sleep(2000);
     apiPage.RunAPI();
     // Using same js object
-    entityExplorer.SelectEntityByName("JSObject1", "Queries/JS");
+    EditorNavigation.SelectEntityByName("JSObject1", EntityType.JSObject);
     agHelper.GetNClick(jsEditor._lineinJsEditor(5), 0, true);
     agHelper.SelectNRemoveLineText(locators._codeMirrorTextArea);
     //agHelper.GetNClick(jsEditor._lineinJsEditor(5));
@@ -190,7 +200,7 @@ describe("Autocomplete tests", () => {
     agHelper.GetNAssertElementText(locators._hints, "email");
     agHelper.Sleep();
     agHelper.TypeText(locators._codeMirrorTextArea, "mail");
-    entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+    EditorNavigation.SelectEntityByName(jsName as string, EntityType.JSObject);
     entityExplorer.ActionContextMenuByEntityName({
       entityNameinLeftSidebar: "JSObject1",
       action: "Delete",
@@ -242,7 +252,10 @@ describe("Autocomplete tests", () => {
 
     cy.get("@jsObjName").then((jsObjName) => {
       jsName = jsObjName;
-      entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+      EditorNavigation.SelectEntityByName(
+        jsName as string,
+        EntityType.JSObject,
+      );
       entityExplorer.ActionContextMenuByEntityName({
         entityNameinLeftSidebar: jsName as string,
         action: "Delete",
@@ -285,14 +298,13 @@ describe("Autocomplete tests", () => {
         cy.get(locators._codeMirrorTextArea)
           .eq(0)
           .focus()
+          .wait(200)
           .type(
-            "{downArrow}{downArrow}{leftArrow}{leftArrow}{leftArrow}{leftArrow}",
+            "{downArrow}{downArrow}{leftArrow}{leftArrow}{leftArrow}{leftArrow}{leftArrow}",
           )
           .type(".");
 
         agHelper.GetNAssertElementText(locators._hints, "geolocation");
-
-        cy.get(".t--close-editor").click();
       });
   });
 

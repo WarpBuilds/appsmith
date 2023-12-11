@@ -31,12 +31,12 @@ describe("Admin settings page", function () {
 
   it("2. Should test that settings page is not accessible to normal users", () => {
     cy.wait(2000);
-    cy.LoginFromAPI(Cypress.env("TESTUSERNAME1"), Cypress.env("TESTPASSWORD1"));
+    cy.LoginFromAPI(Cypress.env("TESTUSERNAME3"), Cypress.env("TESTPASSWORD3"));
     cy.get(".admin-settings-menu-option").should("not.exist");
     cy.visit("/settings/general", { timeout: 60000 });
     // non super users are redirected to home page
     cy.url().should("contain", "/applications");
-    cy.LogOut();
+    cy.LogOut(false);
   });
 
   it("3. Should test that settings page is redirected to default tab", () => {
@@ -62,8 +62,8 @@ describe("Admin settings page", function () {
       cy.url().should("contain", "/settings/authentication");
       cy.get(adminsSettings.emailTab).click();
       cy.url().should("contain", "/settings/email");
-      cy.get(adminsSettings.googleMapsTab).click();
-      cy.url().should("contain", "/settings/google-maps");
+      cy.get(adminsSettings.developerSettingsTab).click();
+      cy.url().should("contain", "/settings/developer-settings");
       cy.get(adminsSettings.versionTab).click();
       cy.url().should("contain", "/settings/version");
     },
@@ -71,7 +71,7 @@ describe("Admin settings page", function () {
 
   it(
     "airgap",
-    "4. Should test that settings page tab redirects and google maps doesn't exist - airgap",
+    "4. Should test that settings page tab redirects and developer settings doesn't exist - airgap",
     () => {
       cy.visit("/applications", { timeout: 60000 });
       if (!Cypress.env("AIRGAPPED")) {
@@ -90,7 +90,7 @@ describe("Admin settings page", function () {
       cy.url().should("contain", "/settings/authentication");
       cy.get(adminsSettings.emailTab).click();
       cy.url().should("contain", "/settings/email");
-      cy.get(adminsSettings.googleMapsTab).should("not.exist");
+      cy.get(adminsSettings.developerSettingsTab).should("not.exist");
       cy.get(adminsSettings.versionTab).click();
       cy.url().should("contain", "/settings/version");
     },
@@ -205,8 +205,10 @@ describe("Admin settings page", function () {
     cy.wait("@postTenantConfig").then((interception) => {
       expect(interception.request.body.instanceName).to.equal(instanceName);
     });
-    cy.get(adminsSettings.restartNotice).should("not.exist");
-    cy.wait(3000);
+    // adding wait for server to restart
+    cy.waitUntil(() =>
+      cy.contains("General", { timeout: 180000 }).should("be.visible"),
+    );
   });
 
   it("10.Should test saving settings value from different tabs", () => {

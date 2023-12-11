@@ -1,6 +1,7 @@
 package com.appsmith.server.repositories.ce;
 
 import com.appsmith.external.models.ActionDTO;
+import com.appsmith.external.models.Datasource;
 import com.appsmith.external.models.PluginType;
 import com.appsmith.server.domains.NewAction;
 import com.appsmith.server.dtos.PluginTypeAndCountDTO;
@@ -130,6 +131,15 @@ public class CustomNewActionRepositoryCEImplTest {
         action.setUnpublishedAction(actionDTO);
         action.setPublishedAction(new ActionDTO());
 
+        return action;
+    }
+
+    private NewAction createActionWithDatasource(String applicationId, String datasourceId) {
+        NewAction action = createUnpublishedAction(applicationId, PluginType.API);
+        Datasource datasource = new Datasource();
+        datasource.setId(datasourceId);
+        datasource.setName(datasourceId);
+        action.getUnpublishedAction().setDatasource(datasource);
         return action;
     }
 

@@ -1,10 +1,13 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
+
 const widgetsPage = require("../../../../../locators/Widgets.json");
-const data = require("../../../../../fixtures/TestDataSet1.json");
 import {
   agHelper,
-  entityExplorer,
   propPane,
   apiPage,
+  dataManager,
 } from "../../../../../support/Objects/ObjectsCore";
 
 describe("Statbox Widget", function () {
@@ -13,7 +16,7 @@ describe("Statbox Widget", function () {
   });
 
   it("1. Open Existing Statbox & change background color & verify", () => {
-    entityExplorer.SelectEntityByName("Statbox1");
+    EditorNavigation.SelectEntityByName("Statbox1", EntityType.Widget);
     cy.get(".t--property-pane-section-general").then(() => {
       propPane.MoveToTab("Style");
       propPane.EnterJSContext("Background color", "#FFC13D");
@@ -26,10 +29,12 @@ describe("Statbox Widget", function () {
   });
 
   it("2. Verify Statbox icon button's onClick action and change the icon", () => {
-    entityExplorer.SelectEntityByName("IconButton1", "Statbox1");
+    EditorNavigation.SelectEntityByName("IconButton1", EntityType.Widget, {}, [
+      "Statbox1",
+    ]);
     cy.get(".t--property-pane-section-general").then(() => {
       // changing the icon to arrow-up
-      cy.get(".bp3-button-text").first().click();
+      cy.get(".bp3-button-text").first().click().wait(500);
       cy.get(".bp3-icon-arrow-up").click().wait(500);
       // opening modal from onClick action of icon button
       cy.createModal("Modal", "onClick");
@@ -45,13 +50,14 @@ describe("Statbox Widget", function () {
   });
 
   it("3. Bind datasource to statbox", () => {
-    apiPage.CreateAndFillApi(
-      data.userApi + "/mock-api?records=20&page=4&size=3",
-      "MockApi",
-    );
+    apiPage.CreateAndFillApi(dataManager.paginationUrl(), "MockApi");
     apiPage.RunAPI();
     // binding datasource to text widget in statbox
-    entityExplorer.SelectEntityByName("Text1", "Statbox1");
+    EditorNavigation.SelectEntityByName("Text1", EntityType.Widget, {}, [
+      "Statbox1",
+    ]);
+    propPane.MoveToTab("Content");
     propPane.UpdatePropertyFieldValue("Text", "{{MockApi.data[0].id}}");
+    agHelper.AssertText(propPane._widgetToVerifyText("Text1"), "text", "10"); //it will always be 10 due to pagination url setting
   });
 });

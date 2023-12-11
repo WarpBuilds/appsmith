@@ -1,3 +1,7 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../../support/Pages/EditorNavigation";
+
 const dsl = require("../../../../../../fixtures/Listv2/simpleLargeListv2.json");
 const commonlocators = require("../../../../../../locators/commonlocators.json");
 const formWidgetsPage = require("../../../../../../locators/FormWidgets.json");
@@ -21,6 +25,8 @@ describe("Select Widgets", function () {
       100,
     );
 
+    _.propPane.ToggleJSMode("sourcedata");
+
     _.propPane.UpdatePropertyFieldValue(
       "Source Data",
       `{{[{
@@ -29,14 +35,14 @@ describe("Select Widgets", function () {
   }]}}`,
     );
 
-    _.propPane.ToggleJSMode("label");
+    _.propPane.ToggleJSMode("label key");
     cy.updateCodeInput(
-      ".t--property-control-wrapper.t--property-control-label",
+      ".t--property-control-wrapper.t--property-control-labelkey",
       `label`,
     );
 
-    _.propPane.ToggleJSMode("value");
-    cy.updateCodeInput(".t--property-control-value", `value`);
+    _.propPane.ToggleJSMode("value key");
+    cy.updateCodeInput(".t--property-control-valuekey", `value`);
 
     _.propPane.UpdatePropertyFieldValue(
       "Default selected values",
@@ -50,6 +56,8 @@ describe("Select Widgets", function () {
 
     _.entityExplorer.DragDropWidgetNVerify(_.draggableWidgets.SELECT, 250, 300);
 
+    _.propPane.ToggleJSMode("sourcedata");
+
     _.propPane.UpdatePropertyFieldValue(
       "Source Data",
       `{{[{
@@ -58,14 +66,14 @@ describe("Select Widgets", function () {
     }]}}`,
     );
 
-    _.propPane.ToggleJSMode("label");
+    _.propPane.ToggleJSMode("label key");
     cy.updateCodeInput(
-      ".t--property-control-wrapper.t--property-control-label",
+      ".t--property-control-wrapper.t--property-control-labelkey",
       `label`,
     );
 
-    _.propPane.ToggleJSMode("value");
-    cy.updateCodeInput(".t--property-control-value", `value`);
+    _.propPane.ToggleJSMode("value key");
+    cy.updateCodeInput(".t--property-control-valuekey", `value`);
 
     _.propPane.UpdatePropertyFieldValue(
       "Default selected value",
@@ -135,7 +143,7 @@ describe("Select Widgets", function () {
       .should("have.text", `${items[0].name}_${items[0].id}_false_true`);
 
     // Test for isValid === false
-    _.entityExplorer.SelectEntityByName("MultiSelect1");
+    EditorNavigation.SelectEntityByName("MultiSelect1", EntityType.Widget);
     _.agHelper.SelectFromMultiSelect([`${items[0].name}`], 0, false);
     cy.get(
       `${widgetSelector("MultiSelect_Widget")} ${commonlocators.bodyTextStyle}`,

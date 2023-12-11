@@ -42,9 +42,9 @@ describe("Import, Export and Fork application and validate data binding", functi
       cy.get("@guid").then((uid) => {
         appName = `app${uid}`;
         cy.get(homePageLocatores.applicationName).click({ force: true });
-        cy.get(homePageLocatores.applicationEditMenu).eq(1).click({
-          force: true,
-        });
+        cy.get(homePageLocatores.portalMenuItem)
+          .contains("Rename", { matchCase: false })
+          .click({ force: true });
         cy.wait(2000);
         cy.get(homePageLocatores.applicationName + " input").type(appName, {
           force: true,
@@ -131,7 +131,7 @@ describe("Import, Export and Fork application and validate data binding", functi
             const { isPartialImport } = interception.response.body.data;
             if (isPartialImport) {
               // should reconnect button
-              agHelper.AssertElementVisible(dataSources._testDs); //Making sure modal is fully loaded
+              agHelper.AssertElementVisibility(dataSources._testDs); //Making sure modal is fully loaded
               cy.get(reconnectDatasourceModal.SkipToAppBtn).click({
                 force: true,
               });

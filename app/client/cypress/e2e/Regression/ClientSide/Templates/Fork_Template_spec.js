@@ -5,9 +5,7 @@ import * as _ from "../../../../support/Objects/ObjectsCore";
 
 describe("excludeForAirgap", "Fork a template to an workspace", () => {
   it("1. Fork a template to an workspace", () => {
-    _.homePage.NavigateToHome();
-    cy.get(templateLocators.templatesTab).click();
-    cy.wait(1000);
+    _.templates.SwitchToTemplatesTab();
     cy.xpath(
       "//h1[text()='Customer Support Dashboard']/parent::div//button[contains(@class, 't--fork-template')]",
     )
@@ -19,20 +17,22 @@ describe("excludeForAirgap", "Fork a template to an workspace", () => {
         cy.get(templateLocators.templateViewForkButton).click();
       }
     });
-    cy.get(templateLocators.dialogForkButton).click();
-
+    _.agHelper.WaitUntilEleAppear(
+      `div[role="dialog"]:has(` + templateLocators.dialogForkButton + `)`,
+    );
+    cy.get(templateLocators.dialogForkButton).click({ force: true });
     cy.get(commonlocators.canvas, { timeout: 30000 }).should("be.visible");
   });
 
   it("2. Update query param on opening fork modal in template detailed view", () => {
-    _.homePage.NavigateToHome();
-    cy.get(templateLocators.templatesTab).click();
+    _.templates.SwitchToTemplatesTab();
     cy.get(templateLocators.templateCard).first().click();
     _.agHelper.CheckForErrorToast("INTERNAL_SERVER_ERROR");
-    cy.get(templateLocators.templateViewForkButton).click();
-    cy.location().should((location) => {
-      expect(location.search).to.eq("?showForkTemplateModal=true");
-    });
+    _.agHelper.GetNClick(templateLocators.templateViewForkButton);
+    // cy.location().should((location) => {
+    //   expect(location.search).to.eq("?showForkTemplateModal=true");
+    // });
+    _.agHelper.AssertURL("?showForkTemplateModal=true");
   });
 
   it("3. Hide template fork button if user does not have a valid workspace to fork", () => {
@@ -79,7 +79,7 @@ describe("excludeForAirgap", "Fork a template to an workspace", () => {
       .find(reconnectDatasourceLocators.ListItemIcon)
       .should("be.visible");
     cy.get(reconnectDatasourceLocators.DatasourceList)
-      .find(reconnectDatasourceLocators.ListItemIcon, {
+      .find(reconnectDatasourceLocators.DatasourceTitle, {
         withinSubject: null,
       })
       .first()

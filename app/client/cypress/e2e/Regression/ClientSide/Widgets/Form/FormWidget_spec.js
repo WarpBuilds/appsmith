@@ -1,3 +1,7 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
+
 const commonlocators = require("../../../../../locators/commonlocators.json");
 const formWidgetsPage = require("../../../../../locators/FormWidgets.json");
 const publish = require("../../../../../locators/publishWidgetspage.json");
@@ -45,9 +49,9 @@ describe("Form Widget Functionality", function () {
     _.deployMode.NavigateBacktoEditor();
 
     //Rename Form widget from Entity Explorer
-    _.entityExplorer.ExpandCollapseEntity("Widgets");
-    _.entityExplorer.ExpandCollapseEntity("Container3");
-    _.entityExplorer.SelectEntityByName("Form1");
+    EditorNavigation.SelectEntityByName("Form1", EntityType.Widget, {}, [
+      "Container3",
+    ]);
     _.entityExplorer.RenameEntityFromExplorer("Form1", "Form");
 
     //Form Widget Functionality To Verify The Colour
@@ -114,6 +118,7 @@ describe("Form Widget Functionality", function () {
     cy.get(publish.formWidget).should("be.visible");
     _.deployMode.NavigateBacktoEditor();
   });
+
   it("5. Toggle JS - Form-Unckeck Visible field Validation", function () {
     cy.openPropertyPane("formwidget");
     //Uncheck the disabled checkbox using JS and validate
@@ -130,12 +135,13 @@ describe("Form Widget Functionality", function () {
     cy.testJsontext("visible", "true");
     _.deployMode.DeployApp();
     cy.get(publish.formWidget).should("be.visible");
+    _.deployMode.NavigateBacktoEditor();
   });
 
-  it.skip("6. Form-Copy Verification", function () {
+  it("6. Form-Copy Verification", function () {
     cy.openPropertyPane("formwidget");
     //Copy Form and verify all properties
-    cy.copyWidget("formwidget", widgetsPage.formWidget); //to improve
+    cy.copyWidget("formwidget", widgetsPage.formWidget);
     _.deployMode.DeployApp();
   });
 

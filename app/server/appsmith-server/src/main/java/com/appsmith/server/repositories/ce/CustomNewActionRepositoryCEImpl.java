@@ -1,5 +1,6 @@
 package com.appsmith.server.repositories.ce;
 
+import com.appsmith.external.models.CreatorContextType;
 import com.appsmith.external.models.PluginType;
 import com.appsmith.external.models.QActionConfiguration;
 import com.appsmith.external.models.QBranchAwareDomain;
@@ -19,9 +20,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.ReactiveMongoOperations;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
+import org.springframework.data.mongodb.core.aggregation.Fields;
 import org.springframework.data.mongodb.core.aggregation.GroupOperation;
 import org.springframework.data.mongodb.core.aggregation.MatchOperation;
 import org.springframework.data.mongodb.core.aggregation.ProjectionOperation;
@@ -32,6 +35,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,11 +55,15 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<NewAction>
         implements CustomNewActionRepositoryCE {
 
+    private final MongoTemplate mongoTemplate;
+
     public CustomNewActionRepositoryCEImpl(
             ReactiveMongoOperations mongoOperations,
             MongoConverter mongoConverter,
-            CacheableRepositoryHelper cacheableRepositoryHelper) {
+            CacheableRepositoryHelper cacheableRepositoryHelper,
+            MongoTemplate mongoTemplate) {
         super(mongoOperations, mongoConverter, cacheableRepositoryHelper);
+        this.mongoTemplate = mongoTemplate;
     }
 
     @Override
@@ -368,9 +376,8 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
                         fieldName(QNewAction.newAction.publishedAction) + ".datasource._id")
                 .is(new ObjectId(datasourceId));
 
-        Criteria datasourceCriteria = where(FieldName.DELETED_AT)
-                .is(null)
-                .orOperator(unpublishedDatasourceCriteria, publishedDatasourceCriteria);
+        Criteria datasourceCriteria =
+                notDeleted().orOperator(unpublishedDatasourceCriteria, publishedDatasourceCriteria);
 
         Query query = new Query();
         query.addCriteria(datasourceCriteria);
@@ -570,16 +577,40 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
     }
 
     @Override
-    public Mono<UpdateResult> publishActions(String applicationId, AclPermission permission) {
+    public Mono<List<BulkWriteResult>> publishActions(String applicationId, AclPermission permission) {
         Criteria applicationIdCriteria =
                 where(fieldName(QNewAction.newAction.applicationId)).is(applicationId);
-        // using aggregation update instead of regular update here
-        // it's required to set a field to a value of another field from the same domain
-        AggregationUpdate aggregationUpdate = AggregationUpdate.update()
-                .set(fieldName(QNewAction.newAction.publishedAction))
-                .toValue("$" + fieldName(QNewAction.newAction.unpublishedAction));
 
-        return updateByCriteria(List.of(applicationIdCriteria), aggregationUpdate, permission);
+        Mono<Set<String>> permissionGroupsMono =
+                getCurrentUserPermissionGroupsIfRequired(Optional.ofNullable(permission));
+
+        return permissionGroupsMono
+                .flatMap(permissionGroups -> {
+                    return Mono.fromCallable(() -> {
+                                AggregationOperation matchAggregationWithPermission = null;
+                                if (permission == null) {
+                                    matchAggregationWithPermission =
+                                            Aggregation.match(new Criteria().andOperator(notDeleted()));
+                                } else {
+                                    matchAggregationWithPermission = Aggregation.match(new Criteria()
+                                            .andOperator(notDeleted(), userAcl(permissionGroups, permission)));
+                                }
+                                AggregationOperation matchAggregation = Aggregation.match(applicationIdCriteria);
+                                AggregationOperation wholeProjection = Aggregation.project(NewAction.class);
+                                AggregationOperation addFieldsOperation = Aggregation.addFields()
+                                        .addField(fieldName(QNewAction.newAction.publishedAction))
+                                        .withValueOf(Fields.field(fieldName(QNewAction.newAction.unpublishedAction)))
+                                        .build();
+                                Aggregation combinedAggregation = Aggregation.newAggregation(
+                                        matchAggregation,
+                                        matchAggregationWithPermission,
+                                        wholeProjection,
+                                        addFieldsOperation);
+                                return mongoTemplate.aggregate(combinedAggregation, NewAction.class, NewAction.class);
+                            })
+                            .subscribeOn(Schedulers.boundedElastic());
+                })
+                .flatMap(updatedResults -> bulkUpdate(updatedResults.getMappedResults()));
     }
 
     @Override
@@ -611,5 +642,67 @@ public class CustomNewActionRepositoryCEImpl extends BaseAppsmithRepositoryImpl<
         Aggregation aggregation = newAggregation(filterStates, countByPluginType, projectionOperation);
         return mongoOperations.aggregate(
                 aggregation, mongoOperations.getCollectionName(NewAction.class), PluginTypeAndCountDTO.class);
+    }
+
+    @Override
+    public Flux<NewAction> findAllByApplicationIdsWithoutPermission(
+            List<String> applicationIds, List<String> includeFields) {
+        Criteria applicationCriteria = Criteria.where(FieldName.APPLICATION_ID).in(applicationIds);
+        return queryAll(List.of(applicationCriteria), includeFields, null, null, NO_RECORD_LIMIT);
+    }
+
+    @Override
+    public Flux<NewAction> findAllUnpublishedActionsByContextIdAndContextType(
+            String contextId, CreatorContextType contextType, AclPermission permission, boolean includeJs) {
+        List<Criteria> criteriaList = new ArrayList<>();
+
+        String contextIdPath = fieldName(QNewAction.newAction.unpublishedAction) + "."
+                + fieldName(QNewAction.newAction.unpublishedAction.pageId);
+        String contextTypePath = fieldName(QNewAction.newAction.unpublishedAction) + "."
+                + fieldName(QNewAction.newAction.unpublishedAction.contextType);
+        Criteria contextIdAndContextTypeCriteria =
+                where(contextIdPath).is(contextId).and(contextTypePath).is(contextType);
+
+        criteriaList.add(contextIdAndContextTypeCriteria);
+
+        Criteria jsInclusionOrExclusionCriteria;
+        if (includeJs) {
+            jsInclusionOrExclusionCriteria =
+                    where(fieldName(QNewAction.newAction.pluginType)).is(PluginType.JS);
+        } else {
+            jsInclusionOrExclusionCriteria =
+                    where(fieldName(QNewAction.newAction.pluginType)).ne(PluginType.JS);
+        }
+
+        criteriaList.add(jsInclusionOrExclusionCriteria);
+
+        return queryAll(List.of(contextIdAndContextTypeCriteria), Optional.of(permission));
+    }
+
+    @Override
+    public Flux<NewAction> findAllPublishedActionsByContextIdAndContextType(
+            String contextId, CreatorContextType contextType, AclPermission permission, boolean includeJs) {
+        List<Criteria> criteriaList = new ArrayList<>();
+        String contextIdPath = fieldName(QNewAction.newAction.publishedAction) + "."
+                + fieldName(QNewAction.newAction.publishedAction.pageId);
+        String contextTypePath = fieldName(QNewAction.newAction.publishedAction) + "."
+                + fieldName(QNewAction.newAction.publishedAction.contextType);
+        Criteria contextIdAndContextTypeCriteria =
+                where(contextIdPath).is(contextId).and(contextTypePath).is(contextType);
+
+        criteriaList.add(contextIdAndContextTypeCriteria);
+
+        Criteria jsInclusionOrExclusionCriteria;
+        if (includeJs) {
+            jsInclusionOrExclusionCriteria =
+                    where(fieldName(QNewAction.newAction.pluginType)).is(PluginType.JS);
+        } else {
+            jsInclusionOrExclusionCriteria =
+                    where(fieldName(QNewAction.newAction.pluginType)).ne(PluginType.JS);
+        }
+
+        criteriaList.add(jsInclusionOrExclusionCriteria);
+
+        return queryAll(List.of(contextIdAndContextTypeCriteria), Optional.of(permission));
     }
 }

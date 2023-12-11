@@ -1,9 +1,12 @@
+import PageList from "../../../../support/Pages/PageList";
+
 const generatePage = require("../../../../locators/GeneratePage.json");
 const datasourceEditor = require("../../../../locators/DatasourcesEditor.json");
 const commonlocators = require("../../../../locators/commonlocators.json");
 
 import {
-  entityExplorer,
+  agHelper,
+  dataSources,
   deployMode,
   homePage,
 } from "../../../../support/Objects/ObjectsCore";
@@ -19,7 +22,7 @@ describe("Generate New CRUD Page Inside from entity explorer", function () {
   it("1. Create new app and Generate CRUD page using a new datasource", function () {
     homePage.NavigateToHome();
     homePage.CreateNewApplication();
-    entityExplorer.AddNewPage("Generate page with data");
+    PageList.AddNewPage("Generate page with data");
     //cy.get(generatePage.generateCRUDPageActionCard).click();
     cy.get(generatePage.selectDatasourceDropdown).click();
 
@@ -34,13 +37,8 @@ describe("Generate New CRUD Page Inside from entity explorer", function () {
       cy.wrap(datasourceName).as("dSName");
     });
 
-    //TestData source
-    cy.get(".t--test-datasource").click();
-    cy.wait("@testDatasource");
-
-    //Save source
-    cy.get(".t--save-datasource").click();
-
+    //TestData & save datasource
+    dataSources.TestSaveDatasource();
     // fetch bucket
     cy.wait("@getDatasourceStructure").should(
       "have.nested.property",
@@ -48,13 +46,13 @@ describe("Generate New CRUD Page Inside from entity explorer", function () {
       200,
     );
 
-    cy.get(generatePage.selectTableDropdown).click();
-    cy.get(generatePage.dropdownOption)
-      .contains("assets-test.appsmith.com")
-      .scrollIntoView()
-      .should("be.visible")
-      .click();
-    cy.get(generatePage.generatePageFormSubmitBtn).click();
+    agHelper.AssertContains("Generate from data");
+    agHelper.GetNClick(generatePage.selectTableDropdown);
+    agHelper.GetNClickByContains(
+      generatePage.dropdownOption,
+      "assets-test.appsmith.com",
+    );
+    agHelper.GetNClick(generatePage.generatePageFormSubmitBtn);
 
     cy.wait("@put_replaceLayoutCRUD").should(
       "have.nested.property",
@@ -76,21 +74,6 @@ describe("Generate New CRUD Page Inside from entity explorer", function () {
   });
 
   it("2. Generate CRUD page from datasource ACTIVE section", function () {
-    // cy.NavigateToQueryEditor();
-    // cy.get(pages.integrationActiveTab)
-    //   .should("be.visible")
-    //   .click({ force: true });
-    // cy.wait(1000);
-
-    // cy.get(datasourceEditor.datasourceCard)
-    //   .contains(datasourceName)
-    //   .scrollIntoView()
-    //   .should("be.visible")
-    //   .closest(datasourceEditor.datasourceCard)
-    //   .within(() => {
-    //     cy.get(datasourceEditor.datasourceCardGeneratePageBtn).click();
-    //   });
-
     cy.NavigateToDSGeneratePage(datasourceName);
 
     // fetch bucket
@@ -169,7 +152,7 @@ describe("Generate New CRUD Page Inside from entity explorer", function () {
     );
 
     cy.get("@dSName").then((dbName) => {
-      entityExplorer.AddNewPage("Generate page with data");
+      PageList.AddNewPage("Generate page with data");
       cy.get(generatePage.selectDatasourceDropdown).click();
       cy.get(generatePage.datasourceDropdownOption).contains(dbName).click();
     });

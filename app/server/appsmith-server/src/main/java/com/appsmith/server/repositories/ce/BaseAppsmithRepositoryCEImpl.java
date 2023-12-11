@@ -13,15 +13,18 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.mongodb.client.result.UpdateResult;
 import com.querydsl.core.types.Path;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.GenericTypeResolver;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.ReactiveMongoOperations;
 import org.springframework.data.mongodb.core.convert.MongoConverter;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.mongodb.core.query.UpdateDefinition;
+import org.springframework.data.mongodb.repository.Meta;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
@@ -84,8 +87,19 @@ public abstract class BaseAppsmithRepositoryCEImpl<T extends BaseDomain> {
                 (Class<T>) GenericTypeResolver.resolveTypeArgument(getClass(), BaseAppsmithRepositoryCEImpl.class);
     }
 
-    public static final String fieldName(Path<?> path) {
+    public static String fieldName(Path<?> path) {
         return Optional.ofNullable(path).map(p -> p.getMetadata().getName()).orElse("");
+    }
+
+    public static String completeFieldName(@NotNull Path<?> path) {
+        StringBuilder sb = new StringBuilder();
+
+        while (!path.getMetadata().isRoot()) {
+            sb.insert(0, "." + fieldName(path));
+            path = path.getMetadata().getParent();
+        }
+        sb.deleteCharAt(0);
+        return sb.toString();
     }
 
     public static final Criteria notDeleted() {
@@ -166,7 +180,7 @@ public abstract class BaseAppsmithRepositoryCEImpl<T extends BaseDomain> {
 
             return mongoOperations
                     .query(this.genericDomain)
-                    .matching(query)
+                    .matching(query.cursorBatchSize(10000))
                     .one()
                     .flatMap(obj -> setUserPermissionsInObject(obj, permissionGroups));
         });
@@ -331,6 +345,7 @@ public abstract class BaseAppsmithRepositoryCEImpl<T extends BaseDomain> {
         });
     }
 
+    @Meta(cursorBatchSize = 10000)
     protected Mono<T> queryOne(
             List<Criteria> criterias, List<String> projectionFieldNames, Optional<AclPermission> permission) {
         Mono<Set<String>> permissionGroupsMono = getCurrentUserPermissionGroupsIfRequired(permission);
@@ -539,7 +554,7 @@ public abstract class BaseAppsmithRepositoryCEImpl<T extends BaseDomain> {
         sortOptional.ifPresent(sort -> query.with(sort));
         return mongoOperations
                 .query(this.genericDomain)
-                .matching(query)
+                .matching(query.cursorBatchSize(10000))
                 .all()
                 .flatMap(obj -> setUserPermissionsInObject(obj, permissionGroups));
     }
@@ -648,5 +663,63 @@ public abstract class BaseAppsmithRepositoryCEImpl<T extends BaseDomain> {
 
     public Flux<T> queryMany(List<Criteria> criteria) {
         return mongoOperations.find(getQuery(criteria), genericDomain);
+    }
+
+    public Flux<T> queryAllWithoutPermissions(
+            List<Criteria> criterias, List<String> includeFields, Sort sort, int limit) {
+        final ArrayList<Criteria> criteriaList = new ArrayList<>(criterias);
+        Query query = new Query();
+        if (!CollectionUtils.isEmpty(includeFields)) {
+            for (String includeField : includeFields) {
+                query.fields().include(includeField);
+            }
+        }
+
+        if (limit != NO_RECORD_LIMIT) {
+            query.limit(limit);
+        }
+        Criteria andCriteria = new Criteria();
+
+        criteriaList.add(notDeleted());
+
+        andCriteria.andOperator(criteriaList.toArray(new Criteria[0]));
+
+        query.addCriteria(andCriteria);
+        if (sort != null) {
+            query.with(sort);
+        }
+
+        return mongoOperations.query(this.genericDomain).matching(query).all().map(obj -> obj);
+    }
+
+    /**
+     * Updates a document in the database that matches the provided query and returns the modified document.
+     *
+     * This method performs a find-and-modify operation internally to atomically update a document in the database.
+     *
+     * @param id The unique identifier of the document to be updated.
+     * @param updateObj The update object specifying the modifications to be applied to the document.
+     * @param permission An optional permission parameter for access control.
+     * @return A Mono emitting the updated document after modification.
+     *
+     * @implNote
+     * The `findAndModify` method operates at the database level and does not automatically handle encryption or decryption of fields. If the document contains encrypted fields, it is the responsibility of the caller to handle encryption and decryption both before and after using this method.
+     *
+     * @see FindAndModifyOptions
+     */
+    public Mono<T> updateAndReturn(String id, Update updateObj, Optional<AclPermission> permission) {
+        Query query = new Query(Criteria.where("id").is(id));
+
+        FindAndModifyOptions findAndModifyOptions =
+                FindAndModifyOptions.options().returnNew(Boolean.TRUE);
+
+        if (permission.isEmpty()) {
+            return mongoOperations.findAndModify(query, updateObj, findAndModifyOptions, this.genericDomain);
+        }
+
+        return getCurrentUserPermissionGroupsIfRequired(permission).flatMap(permissionGroups -> {
+            query.addCriteria(new Criteria().andOperator(notDeleted(), userAcl(permissionGroups, permission.get())));
+            return mongoOperations.findAndModify(query, updateObj, findAndModifyOptions, this.genericDomain);
+        });
     }
 }

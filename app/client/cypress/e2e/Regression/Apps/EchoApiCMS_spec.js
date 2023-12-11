@@ -6,14 +6,17 @@ import {
   gitSync,
   apiPage,
   dataSources,
+  dataManager,
 } from "../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../support/Pages/EditorNavigation";
 
 describe("Content Management System App", function () {
   before(() => {
-    homePage.NavigateToHome();
     agHelper.GenerateUUID();
     cy.get("@guid").then((uid) => {
-      homePage.CreateNewWorkspace("EchoApiCMS" + uid);
+      homePage.CreateNewWorkspace("EchoApiCMS" + uid, true);
       homePage.CreateAppInWorkspace("EchoApiCMS" + uid, "EchoApiCMSApp");
       agHelper.AddDsl("CMSdsl");
     });
@@ -21,55 +24,52 @@ describe("Content Management System App", function () {
 
   let repoName;
   it("1.Create Get echo Api call", function () {
-    cy.fixture("datasources").then((datasourceFormData) => {
-      apiPage.CreateAndFillApi(datasourceFormData["echoApiUrl"], "get_data");
-      // creating get request using echo
-      apiPage.EnterHeader(
-        "info",
-        '[{"due":"2021-11-23","assignee":"Dan.Wyman@hotmail.com","title":"Recusan","description":"Ut quisquam eum beatae facere eos aliquam laborum ea.","id":"1"},{"due":"2021-11-23","assignee":"Dashawn_Maggio30@gmail.com","title":"Dignissimos eaque","description":"Consequatur corrupti et possimus en.","id":"2"},{"due":"2021-11-24","assignee":"Curt50@gmail.com","title":"Voluptas explicabo","description":"Quia ratione optio et maiores.","id":"3"},{"due":"2021-11-23","assignee":"Shanna63@hotmail.com","title":"Aut omnis.","description":"Neque rerum numquam veniam voluptatum id. Aut daut.","id":"4"}]',
-      );
-      // entering the data in header
-      apiPage.RunAPI();
-      apiPage.ResponseStatusCheck("200");
-    });
+    apiPage.CreateAndFillApi(
+      dataManager.dsValues[dataManager.defaultEnviorment].echoApiUrl,
+      "get_data",
+    );
+    // creating get request using echo
+    apiPage.EnterHeader(
+      "info",
+      '[{"due":"2021-11-23","assignee":"Dan.Wyman@hotmail.com","title":"Recusan","description":"Ut quisquam eum beatae facere eos aliquam laborum ea.","id":"1"},{"due":"2021-11-23","assignee":"Dashawn_Maggio30@gmail.com","title":"Dignissimos eaque","description":"Consequatur corrupti et possimus en.","id":"2"},{"due":"2021-11-24","assignee":"Curt50@gmail.com","title":"Voluptas explicabo","description":"Quia ratione optio et maiores.","id":"3"},{"due":"2021-11-23","assignee":"Shanna63@hotmail.com","title":"Aut omnis.","description":"Neque rerum numquam veniam voluptatum id. Aut daut.","id":"4"}]',
+    );
+    // entering the data in header
+    apiPage.RunAPI();
+    apiPage.ResponseStatusCheck("200");
   });
 
   it("2. Create Post echo Api call", function () {
-    cy.fixture("datasources").then((datasourceFormData) => {
-      apiPage.CreateAndFillApi(
-        datasourceFormData["echoApiUrl"],
-        "send_mail",
-        10000,
-        "POST",
-      );
-      apiPage.SelectPaneTab("Body");
-      apiPage.SelectSubTab("JSON");
-      // creating post request using echo
-      dataSources.EnterQuery(
-        '{"to":"{{to_input.text}}","subject":"{{subject.text}}","content":"{{content.text}}"}',
-      );
-      apiPage.RunAPI();
-      apiPage.ResponseStatusCheck("200");
-    });
+    apiPage.CreateAndFillApi(
+      dataManager.dsValues[dataManager.defaultEnviorment].echoApiUrl,
+      "send_mail",
+      10000,
+      "POST",
+    );
+    apiPage.SelectPaneTab("Body");
+    apiPage.SelectSubTab("JSON");
+    // creating post request using echo
+    dataSources.EnterQuery(
+      '{"to":"{{to_input.text}}","subject":"{{subject.text}}","content":"{{content.text}}"}',
+    );
+    apiPage.RunAPI();
+    apiPage.ResponseStatusCheck("200");
   });
 
   it("3. Create Delete echo Api call", function () {
-    cy.fixture("datasources").then((datasourceFormData) => {
-      apiPage.CreateAndFillApi(
-        datasourceFormData["echoApiUrl"],
-        "delete_proposal",
-        10000,
-        "DELETE",
-      );
-      apiPage.SelectPaneTab("Body");
-      apiPage.SelectSubTab("JSON");
-      // creating post request using echo
-      dataSources.EnterQuery(
-        '{"title":"{{title.text}}","due":"{{due.text}}","assignee":"{{assignee.text}}"}',
-      );
-      apiPage.RunAPI();
-      apiPage.ResponseStatusCheck("200");
-    });
+    apiPage.CreateAndFillApi(
+      dataManager.dsValues[dataManager.defaultEnviorment].echoApiUrl,
+      "delete_proposal",
+      10000,
+      "DELETE",
+    );
+    apiPage.SelectPaneTab("Body");
+    apiPage.SelectSubTab("JSON");
+    // creating post request using echo
+    dataSources.EnterQuery(
+      '{"title":"{{title.text}}","due":"{{due.text}}","assignee":"{{assignee.text}}"}',
+    );
+    apiPage.RunAPI();
+    apiPage.ResponseStatusCheck("200");
   });
 
   it("4. Send mail and verify post request body", function () {
@@ -114,32 +114,27 @@ describe("Content Management System App", function () {
   });
 
   it("6. Connect app to git, verify data binding in edit and deploy mode", () => {
-    cy.get(`.t--entity-name:contains("Page1")`)
-      .should("be.visible")
-      .click({ force: true });
+    EditorNavigation.SelectEntityByName("Page1", EntityType.Page);
     gitSync.CreateNConnectToGit(repoName);
     cy.get("@gitRepoName").then((repName) => {
       repoName = repName;
-    });
-    cy.latestDeployPreview();
-    cy.wait(2000);
-    cy.xpath("//span[text()='Curt50@gmail.com']")
-      .should("be.visible")
-      .click({ force: true });
-    cy.get(appPage.mailButton).closest("div").click();
-    cy.xpath(appPage.sendMailText).should("be.visible");
-    cy.xpath(appPage.subjectField).type("Test");
-    cy.get(appPage.contentField)
-      .last()
-      .find("textarea")
-      .type("Task completed", { force: true });
-    cy.get(appPage.confirmButton).closest("div").click({ force: true });
-    cy.get(appPage.closeButton).closest("div").click({ force: true });
-    deployMode.NavigateBacktoEditor();
-  });
 
-  after(() => {
-    //clean up
-    gitSync.DeleteTestGithubRepo(repoName);
+      cy.latestDeployPreview();
+      cy.wait(2000);
+      cy.xpath("//span[text()='Curt50@gmail.com']")
+        .should("be.visible")
+        .click({ force: true });
+      cy.get(appPage.mailButton).closest("div").click();
+      cy.xpath(appPage.sendMailText).should("be.visible");
+      cy.xpath(appPage.subjectField).type("Test");
+      cy.get(appPage.contentField)
+        .last()
+        .find("textarea")
+        .type("Task completed", { force: true });
+      cy.get(appPage.confirmButton).closest("div").click({ force: true });
+      cy.get(appPage.closeButton).closest("div").click({ force: true });
+      deployMode.NavigateBacktoEditor();
+      gitSync.DeleteTestGithubRepo(repoName);
+    });
   });
 });

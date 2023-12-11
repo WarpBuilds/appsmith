@@ -8,17 +8,23 @@ import {
   dataSources,
   table,
   entityItems,
+  assertHelper,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+  AppSidebarButton,
+  AppSidebar,
+} from "../../../../support/Pages/EditorNavigation";
 let dsName: any, jsName: any;
 
 describe("JSObjects OnLoad Actions tests", function () {
   before(() => {
     agHelper.AddDsl("tablev1NewDsl");
-    entityExplorer.NavigateToSwitcher("Explorer");
     dataSources.CreateDataSource("Postgres");
     cy.get("@dsName").then(($dsName) => {
       dsName = $dsName;
     });
+    AppSidebar.navigate(AppSidebarButton.Editor);
   });
 
   it("1. Tc 54, 55 - Verify User enables only 'Before Function calling' & OnPage Load is Automatically enable after mapping done on JSOBject", function () {
@@ -36,8 +42,7 @@ describe("JSObjects OnLoad Actions tests", function () {
       },
     );
     jsEditor.EnableDisableAsyncFuncSettings("getEmployee", false, true); //Only before calling confirmation is enabled by User here
-    dataSources.NavigateFromActiveDS(dsName, true);
-    agHelper.RenameWithInPane("GetEmployee");
+    dataSources.CreateQueryForDS(dsName, "", "GetEmployee");
     cy.get("@jsObjName").then((jsObjName) => {
       jsName = jsObjName;
       dataSources.EnterQuery(
@@ -45,7 +50,7 @@ describe("JSObjects OnLoad Actions tests", function () {
           jsObjName +
           ".getEmployee.data}}",
       );
-      entityExplorer.SelectEntityByName("Table1", "Widgets");
+      EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
       propPane.UpdatePropertyFieldValue("Table data", "{{GetEmployee.data}}");
       agHelper.ValidateToastMessage(
         "[GetEmployee, " +
@@ -53,14 +58,14 @@ describe("JSObjects OnLoad Actions tests", function () {
           ".getEmployee] will be executed automatically on page load",
       );
       deployMode.DeployApp();
-      agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-      agHelper.AssertElementVisible(
+      agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+      agHelper.AssertElementVisibility(
         jsEditor._dialogBody((jsName as string) + ".getEmployee"),
       );
       jsEditor.ConfirmationClick("Yes");
       agHelper.Sleep(1000);
     });
-    agHelper.AssertNetworkExecutionSuccess("@postExecute");
+    assertHelper.AssertNetworkExecutionSuccess("@postExecute");
     table.ReadTableRowColumnData(0, 0).then((cellData) => {
       expect(cellData).to.be.equal("2");
     });
@@ -68,22 +73,22 @@ describe("JSObjects OnLoad Actions tests", function () {
   });
 
   it("2. Tc 54, 55 - Verify OnPage Load - auto enabled from above case for JSOBject", function () {
-    agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+    agHelper.AssertElementVisibility(
       jsEditor._dialogBody((jsName as string) + ".getEmployee"),
     );
     jsEditor.ConfirmationClick("Yes");
     //agHelper.Sleep(1000);
     agHelper.ValidateToastMessage("getEmployee ran successfully"); //Verify this toast comes in EDIT page only
-    entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+    EditorNavigation.SelectEntityByName(jsName as string, EntityType.JSObject);
     jsEditor.VerifyAsyncFuncSettings("getEmployee", true, true);
   });
 
   it("3. Tc 56 - Verify OnPage Load - Enabled & Before Function calling Enabled for JSOBject & User clicks No & then Yes in Confirmation dialog", function () {
     deployMode.DeployApp(); //Adding this check since GetEmployee failure toast is always coming & making product flaky
     //agHelper.WaitUntilAllToastsDisappear();
-    agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+    agHelper.AssertElementVisibility(
       jsEditor._dialogBody((jsName as string) + ".getEmployee"),
     );
     jsEditor.ConfirmationClick("No");
@@ -92,8 +97,8 @@ describe("JSObjects OnLoad Actions tests", function () {
     agHelper.WaitUntilAllToastsDisappear();
 
     agHelper.RefreshPage("viewPage");
-    agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+    agHelper.AssertElementVisibility(
       jsEditor._dialogBody((jsName as string) + ".getEmployee"),
     );
     jsEditor.ConfirmationClick("Yes");
@@ -102,8 +107,8 @@ describe("JSObjects OnLoad Actions tests", function () {
       expect(cellData).to.be.equal("2");
     });
     deployMode.NavigateBacktoEditor();
-    agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+    agHelper.AssertElementVisibility(
       jsEditor._dialogBody((jsName as string) + ".getEmployee"),
     );
     jsEditor.ConfirmationClick("Yes");
@@ -111,8 +116,8 @@ describe("JSObjects OnLoad Actions tests", function () {
   });
 
   //Skipping due to - "tableData":"ERROR: invalid input syntax for type smallint: "{}""
-  it.skip("4. Tc 53 - Verify OnPage Load - Enabled & Disabling - Before Function calling for JSOBject", function () {
-    entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+  it("4. Tc 53 - Verify OnPage Load - Enabled & Disabling - Before Function calling for JSOBject", function () {
+    EditorNavigation.SelectEntityByName(jsName as string, EntityType.JSObject);
     jsEditor.EnableDisableAsyncFuncSettings("getEmployee", true, false);
     //jsEditor.RunJSObj(); //Even running JS functin before delpoying does not help
     //agHelper.Sleep(2000);
@@ -123,7 +128,7 @@ describe("JSObjects OnLoad Actions tests", function () {
     );
     // assert that on view mode, we don't get "successful run" toast message for onpageload actions
     agHelper.AssertElementAbsence(locators._specificToast("ran successfully")); //failed toast is appearing hence skipping
-    agHelper.AssertNetworkExecutionSuccess("@postExecute");
+    assertHelper.AssertNetworkExecutionSuccess("@postExecute");
     table.ReadTableRowColumnData(0, 0).then((cellData) => {
       expect(cellData).to.be.equal("2");
     });
@@ -131,12 +136,12 @@ describe("JSObjects OnLoad Actions tests", function () {
   });
 
   it("5. Verify Error for OnPage Load - disable & Before Function calling enabled for JSOBject", function () {
-    entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+    EditorNavigation.SelectEntityByName(jsName as string, EntityType.JSObject);
     jsEditor.EnableDisableAsyncFuncSettings("getEmployee", false, true);
     deployMode.DeployApp(locators._widgetInDeployed("tablewidget"), false);
     agHelper.WaitUntilToastDisappear('The action "GetEmployee" has failed');
-    deployMode.NavigateBacktoEditor();
-    agHelper.WaitUntilToastDisappear('The action "GetEmployee" has failed');
+    deployMode.NavigateBacktoEditor('The action "GetEmployee" has failed');
+    //agHelper.WaitUntilToastDisappear('The action "GetEmployee" has failed');
     // ee.ExpandCollapseEntity("Queries/JS");
     // ee.SelectEntityByName(jsName as string);
     // jsEditor.EnableDisableAsyncFuncSettings("getEmployee", true, true);
@@ -147,8 +152,8 @@ describe("JSObjects OnLoad Actions tests", function () {
   it("6. Tc 55 - Verify OnPage Load - Enabling & Before Function calling Enabling for JSOBject & deleting testdata", function () {
     // deployMode.DeployApp(locators._widgetInDeployed("tablewidget"), false);
     // agHelper.WaitUntilAllToastsDisappear();    //incase toast appears, GetEmployee failure toast is appearing
-    // agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-    // agHelper.AssertElementVisible(
+    // agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+    // agHelper.AssertElementVisibility(
     //   jsEditor._dialogBody((jsName as string) + ".getEmployee"),
     // );
     // jsEditor.ConfirmationClick("Yes");
@@ -159,14 +164,14 @@ describe("JSObjects OnLoad Actions tests", function () {
     // });
     // //agHelper.AssertNetworkExecutionSuccess("@postExecute");
     // deployMode.NavigateBacktoEditor();
-    // agHelper.AssertElementVisible(jsEditor._dialog("Confirmation dialog"));
-    // agHelper.AssertElementVisible(
+    // agHelper.AssertElementVisibility(jsEditor._dialog("Confirmation dialog"));
+    // agHelper.AssertElementVisibility(
     //   jsEditor._dialogBody((jsName as string) + ".getEmployee"),
     // );
     // jsEditor.ConfirmationClick("Yes");
     // agHelper.ValidateToastMessage("getEmployee ran successfully"); //Verify this toast comes in EDIT page only
 
-    entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+    EditorNavigation.SelectEntityByName(jsName as string, EntityType.JSObject);
     entityExplorer.ActionContextMenuByEntityName({
       entityNameinLeftSidebar: jsName as string,
       action: "Delete",

@@ -1,25 +1,29 @@
 import {
   agHelper,
-  locators,
-  entityExplorer,
-  jsEditor,
-  deployMode,
-  homePage,
   dataSources,
+  deployMode,
+  entityExplorer,
   entityItems,
+  homePage,
+  jsEditor,
 } from "../../../../support/Objects/ObjectsCore";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
+
 let datasourceName: any, jsName: any;
 
 describe("JSObjects OnLoad Actions tests", function () {
   before(() => {
-    homePage.NavigateToHome();
-    homePage.CreateNewWorkspace("JSOnLoadTest");
+    homePage.CreateNewWorkspace("JSOnLoadTest", true);
   });
 
-  it("1. Tc #58 Verify JSOnPageload with ConfirmBefore calling - while imported", () => {
+  it("1. Bug 27594 - Tc #58 Verify JSOnPageload with ConfirmBefore calling - while imported", () => {
     homePage.ImportApp("ImportApps/JSOnLoadImport.json", "JSOnLoadTest");
     cy.wait("@importNewApplication").then(() => {
       agHelper.Sleep();
+
+      // This will fill in credentials and test the datasource
       dataSources.ReconnectSingleDSNAssert("MySQL-Ds", "MySQL");
     });
     AssertJSOnPageLoad("runSpaceCraftImages", true);
@@ -67,7 +71,6 @@ describe("JSObjects OnLoad Actions tests", function () {
   it("6. Tc #1910 - Verify the Number of confirmation models of JS Object on page load", () => {
     homePage.CreateAppInWorkspace("JSOnLoadTest");
     entityExplorer.DragDropWidgetNVerify("buttonwidget", 100, 100);
-    entityExplorer.NavigateToSwitcher("Explorer");
     dataSources.CreateDataSource("Postgres");
     cy.get("@dsName").then((dsName) => {
       datasourceName = dsName;
@@ -163,17 +166,16 @@ describe("JSObjects OnLoad Actions tests", function () {
   });
 
   it("7. Tc #1909 - Verify the sequence of of JS Object on page load", () => {
-    entityExplorer.ExpandCollapseEntity("Queries/JS");
-    entityExplorer.SelectEntityByName("JSObject1");
+    EditorNavigation.SelectEntityByName("JSObject1", EntityType.JSObject);
     jsEditor.EnableDisableAsyncFuncSettings("astros", true, false);
     jsEditor.EnableDisableAsyncFuncSettings("city", true, false);
-    entityExplorer.SelectEntityByName("JSObject2");
+    EditorNavigation.SelectEntityByName("JSObject2", EntityType.JSObject);
     jsEditor.EnableDisableAsyncFuncSettings("cat", true, false);
     jsEditor.EnableDisableAsyncFuncSettings("hogwartsstudents", true, false);
-    entityExplorer.SelectEntityByName("JSObject3");
+    EditorNavigation.SelectEntityByName("JSObject3", EntityType.JSObject);
     jsEditor.EnableDisableAsyncFuncSettings("film", true, false);
 
-    entityExplorer.SelectEntityByName("Page1");
+    EditorNavigation.SelectEntityByName("Page1", EntityType.Page);
     agHelper.RefreshPage();
 
     agHelper.ValidateToastMessage("ran successfully", 0, 5);
@@ -213,7 +215,10 @@ describe("JSObjects OnLoad Actions tests", function () {
 
     cy.get("@jsObjName").then((jsObjName) => {
       jsName = jsObjName;
-      entityExplorer.SelectEntityByName(jsName as string, "Queries/JS");
+      EditorNavigation.SelectEntityByName(
+        jsName as string,
+        EntityType.JSObject,
+      );
       entityExplorer.ActionContextMenuByEntityName({
         entityNameinLeftSidebar: jsName as string,
         action: "Delete",
@@ -227,7 +232,7 @@ describe("JSObjects OnLoad Actions tests", function () {
     shouldCheckImport = false,
     faliureMsg = "",
   ) {
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(
       jsEditor._dialogBody("JSObject1." + jsMethod),
     );
     jsEditor.ConfirmationClick("No");
@@ -236,7 +241,7 @@ describe("JSObjects OnLoad Actions tests", function () {
     shouldCheckImport && homePage.AssertNCloseImport();
 
     deployMode.DeployApp();
-    agHelper.AssertElementVisible(
+    agHelper.AssertElementVisibility(
       jsEditor._dialogBody("JSObject1." + jsMethod),
     );
     jsEditor.ConfirmationClick("Yes");

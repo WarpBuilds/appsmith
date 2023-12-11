@@ -5,24 +5,21 @@ import LOG_TYPE from "entities/AppsmithConsole/logtype";
 import AppsmithConsole from "utils/AppsmithConsole";
 import { isEmpty, isEqual, xorWith } from "lodash";
 
-export type ParsedJSSubAction = {
+export interface ParsedJSSubAction {
   name: string;
   body: string;
   arguments: Array<Variable>;
-  isAsync: boolean;
-  // parsedFunction - used only to determine if function is async
-  parsedFunction?: () => unknown;
-};
+}
 
-export type ParsedBody = {
+export interface ParsedBody {
   actions: Array<ParsedJSSubAction>;
   variables: Array<Variable>;
-};
+}
 
-export type JSUpdate = {
+export interface JSUpdate {
   id: string;
   parsedBody: ParsedBody | undefined;
-};
+}
 
 export const getDifferenceInJSArgumentArrays = (x: any, y: any) =>
   isEmpty(xorWith(x, y, isEqual));
@@ -45,7 +42,6 @@ export const getDifferenceInJSCollection = (
       if (preExisted) {
         if (
           preExisted.actionConfiguration.body !== action.body ||
-          preExisted.actionConfiguration.isAsync !== action.isAsync ||
           !getDifferenceInJSArgumentArrays(
             preExisted.actionConfiguration.jsArguments,
             action.arguments,
@@ -57,7 +53,6 @@ export const getDifferenceInJSCollection = (
               ...preExisted.actionConfiguration,
               body: action.body,
               jsArguments: action.arguments,
-              isAsync: action.isAsync,
             },
           });
         }
@@ -122,7 +117,6 @@ export const getDifferenceInJSCollection = (
         workspaceId: jsAction.workspaceId,
         actionConfiguration: {
           body: action.body,
-          isAsync: action.isAsync,
           timeoutInMillisecond: 0,
           jsArguments: action.arguments || [],
         },
@@ -220,7 +214,6 @@ export const createDummyJSCollectionActions = (
       executeOnLoad: false,
       actionConfiguration: {
         body: "function (){\n\t\t//\twrite code here\n\t\t//\tthis.myVar1 = [1,2,3]\n\t}",
-        isAsync: false,
         timeoutInMillisecond: 0,
         jsArguments: [],
       },
@@ -233,7 +226,6 @@ export const createDummyJSCollectionActions = (
       executeOnLoad: false,
       actionConfiguration: {
         body: "async function () {\n\t\t//\tuse async-await or promises\n\t\t//\tawait storeValue('varName', 'hello world')\n\t}",
-        isAsync: true,
         timeoutInMillisecond: 0,
         jsArguments: [],
       },

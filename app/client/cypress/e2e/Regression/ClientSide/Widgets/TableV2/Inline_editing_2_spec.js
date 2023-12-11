@@ -1,3 +1,7 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
+
 const commonlocators = require("../../../../../locators/commonlocators.json");
 const widgetsPage = require("../../../../../locators/Widgets.json");
 import {
@@ -65,7 +69,7 @@ describe("Table widget inline editing functionality", () => {
   });
 
   it("4. should check that doesn't grow taller when text wrapping is disabled", () => {
-    entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     table.EnableEditableOfColumn("step");
     table.EditTableCell(0, 0, "", false);
     agHelper.GetHeight(table._editCellEditor);
@@ -85,7 +89,7 @@ describe("Table widget inline editing functionality", () => {
   });
 
   it("5. should check that grows taller when text wrapping is enabled", () => {
-    entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     table.EnableEditableOfColumn("step");
     table.EditColumn("step");
     propPane.TogglePropertyState("Cell Wrapping", "On");
@@ -146,7 +150,7 @@ describe("Table widget inline editing functionality", () => {
     cy.editTableCell(0, 2);
     cy.enterTableCellValue(0, 2, "#14").type("{enter}");
     cy.openPropertyPane("tablewidgetv2");
-    cy.get(widgetsPage.tabedataField).type("{backspace}");
+    cy.get(widgetsPage.tabedataField).type("{cmd}{a} {backspace}");
     cy.wait(300);
     cy.get(commonlocators.textWidgetContainer).should("contain.text", -1);
   });
@@ -167,8 +171,7 @@ describe("Table widget inline editing functionality", () => {
       `{{resetWidget("Table1",true)}}`,
     );
 
-    entityExplorer.NavigateToSwitcher("Explorer");
-    entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     table.EnableEditableOfColumn("step");
     agHelper.GetNClick(table._updateMode("Multi"), 0, false, 1000);
 
@@ -188,7 +191,7 @@ describe("Table widget inline editing functionality", () => {
     table.EditTableCell(2, 0, "#14");
     cy.get(commonlocators.textWidgetContainer).should("contain.text", 2);
     cy.openPropertyPane("tablewidgetv2");
-    cy.get(widgetsPage.tabedataField).type("{backspace}");
+    cy.get(widgetsPage.tabedataField).type("{cmd}{a} {backspace}");
     cy.wait(300);
     cy.get(commonlocators.textWidgetContainer).should("contain.text", -1);
   });

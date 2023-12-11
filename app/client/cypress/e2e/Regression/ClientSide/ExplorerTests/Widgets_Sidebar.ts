@@ -1,9 +1,12 @@
-import { featureFlagIntercept } from "../../../../support/Objects/FeatureFlags";
 import {
   entityExplorer,
   agHelper,
   locators,
 } from "../../../../support/Objects/ObjectsCore";
+import {
+  PageLeftPane,
+  PagePaneSegment,
+} from "../../../../support/Pages/EditorNavigation";
 
 describe("Entity explorer tests related to widgets and validation", function () {
   // Taken from here appsmith/app/client/src/constants/WidgetConstants.tsx
@@ -59,15 +62,10 @@ describe("Entity explorer tests related to widgets and validation", function () 
     External: ["Audio Recorder", "Camera", "Code Scanner"],
   };
 
-  before(() => {
-    featureFlagIntercept(
-      {
-        release_widgetdiscovery_enabled: true,
-      },
-      false,
-    );
-    agHelper.RefreshPage();
-  });
+  if (Cypress.env("AIRGAPPED")) {
+    // Remove map widget in case of airgap
+    WIDGETS_CATALOG.Content = ["Progress", "Rating", "Text"];
+  }
 
   const getTotalNumberOfWidgets = () => {
     return Object.values(WIDGETS_CATALOG).reduce(
@@ -77,7 +75,7 @@ describe("Entity explorer tests related to widgets and validation", function () 
   };
 
   it("1. All widget tags should be visible and open by default.", () => {
-    entityExplorer.NavigateToSwitcher("Widgets");
+    PageLeftPane.switchSegment(PagePaneSegment.Widgets);
 
     agHelper.AssertElementLength(
       entityExplorer._widgetTagsList,
@@ -183,9 +181,7 @@ describe("Entity explorer tests related to widgets and validation", function () 
     agHelper.TypeText(entityExplorer._widgetSearchInput, "p");
     agHelper.AssertElementLength(entityExplorer._widgetCards, 2);
 
-    agHelper.ClearTextField(entityExplorer._widgetSearchInput);
-
-    agHelper.TypeText(entityExplorer._widgetSearchInput, "cypress");
+    agHelper.ClearNType(entityExplorer._widgetSearchInput, "cypress");
     agHelper.AssertElementLength(entityExplorer._widgetCards, 0);
 
     agHelper.ClearTextField(entityExplorer._widgetSearchInput);

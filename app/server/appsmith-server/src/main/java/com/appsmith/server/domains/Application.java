@@ -2,7 +2,7 @@ package com.appsmith.server.domains;
 
 import com.appsmith.external.models.BaseDomain;
 import com.appsmith.external.views.Views;
-import com.appsmith.server.dtos.CustomJSLibApplicationDTO;
+import com.appsmith.server.dtos.CustomJSLibContextDTO;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.querydsl.core.annotations.QueryEntity;
@@ -47,9 +47,7 @@ public class Application extends BaseDomain {
     @JsonView(Views.Public.class)
     String workspaceId;
 
-    /*
-    TODO: remove default values from application.
-     */
+    // TODO: remove default values from application
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Deprecated(forRemoval = true)
     @JsonView(Views.Public.class)
@@ -98,10 +96,10 @@ public class Application extends BaseDomain {
     AppLayout publishedAppLayout;
 
     @JsonView(Views.Public.class)
-    Set<CustomJSLibApplicationDTO> unpublishedCustomJSLibs;
+    Set<CustomJSLibContextDTO> unpublishedCustomJSLibs;
 
     @JsonView(Views.Public.class)
-    Set<CustomJSLibApplicationDTO> publishedCustomJSLibs;
+    Set<CustomJSLibContextDTO> publishedCustomJSLibs;
 
     @JsonView(Views.Public.class)
     GitApplicationMetadata gitApplicationMetadata;
@@ -195,6 +193,14 @@ public class Application extends BaseDomain {
     // forkWithConfiguration represents whether credentials are shared or not while forking an app
     @JsonView(Views.Public.class)
     Boolean forkWithConfiguration;
+
+    // isCommunityTemplate represents whether this application has been published as a community template
+    @JsonView(Views.Public.class)
+    Boolean isCommunityTemplate;
+
+    /* Template title of the template from which this app was forked, if any */
+    @JsonView(Views.Public.class)
+    String forkedFromTemplateTitle;
 
     @JsonView(Views.Internal.class)
     @Deprecated
@@ -403,7 +409,8 @@ public class Application extends BaseDomain {
 
         public enum Type {
             FIXED,
-            AUTO
+            AUTO,
+            ANVIL
         }
     }
 }

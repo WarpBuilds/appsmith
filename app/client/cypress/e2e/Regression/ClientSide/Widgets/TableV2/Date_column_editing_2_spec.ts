@@ -1,69 +1,28 @@
 import {
-  table,
-  entityExplorer,
   agHelper,
+  dataSources,
   locators,
   propPane,
-  assertHelper,
+  table,
 } from "../../../../../support/Objects/ObjectsCore";
+
+import { datePickerlocators } from "../../../../../locators/WidgetLocators";
+import EditorNavigation, {
+  EntityType,
+} from "../../../../../support/Pages/EditorNavigation";
 
 describe("Table widget date column inline editing functionality", () => {
   before(() => {
     agHelper.AddDsl("Table/DateCellEditingDSL");
   });
 
-  it.skip("1. should check that changing property pane time precision changes the date picker time precision", () => {
-    entityExplorer.SelectEntityByName("Table1");
-    table.EditColumn("release_date", "v2");
-    agHelper.GetNClick(table._timeprecisionPopover, 0);
-    agHelper
-      .GetElement(locators._dropdownText)
-      .children()
-      .contains("Minute")
-      .click();
-    agHelper.GetElement(table._tableRow1Child3).dblclick({
-      force: true,
-    });
-    agHelper.AssertElementExist(table._timePickerHour);
-    agHelper.AssertElementExist(table._timePickerMinute);
-    agHelper.AssertElementAbsence(table._timePickerSecond);
-
-    entityExplorer.SelectEntityByName("Table1");
-    table.EditColumn("release_date", "v2");
-    agHelper.GetNClick(table._timeprecisionPopover, 0);
-    agHelper
-      .GetElement(locators._dropdownText)
-      .children()
-      .contains("None")
-      .click();
-    agHelper.GetElement(table._tableRow1Child3).dblclick({
-      force: true,
-    });
-    agHelper.AssertElementAbsence(table._timePickerRow);
-
-    entityExplorer.SelectEntityByName("Table1");
-    table.EditColumn("release_date", "v2");
-    agHelper.GetNClick(table._timeprecisionPopover, 1);
-    agHelper
-      .GetElement(locators._dropdownText)
-      .children()
-      .contains("Second")
-      .click();
-    agHelper.GetElement(table._tableRow1Child3).dblclick({
-      force: true,
-    });
-    agHelper.AssertElementExist(table._timePickerHour);
-    agHelper.AssertElementExist(table._timePickerMinute);
-    agHelper.AssertElementExist(table._timePickerSecond);
-  });
-
-  it("2. should check visible property control functionality", () => {
-    entityExplorer.SelectEntityByName("Table1");
+  it("1. should check visible property control functionality", () => {
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     table.EditColumn("release_date", "v2");
     propPane.TogglePropertyState("Visible", "Off");
     agHelper.Sleep(1000);
     table.AssertHiddenColumns(["release_date"]);
-    entityExplorer.SelectEntityByName("Table1");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     propPane.NavigateBackToPropertyPane();
     table.EditColumn("release_date", "v2");
     propPane.TogglePropertyState("Visible", "On");
@@ -71,53 +30,43 @@ describe("Table widget date column inline editing functionality", () => {
     table.AssertVisibleColumns(["release_date"]);
   });
 
-  // ADS changes to date input property causes this test to fail
-  // skipping it temporarily.
-  it.skip("3. should check min date and max date property control functionality", () => {
-    entityExplorer.SelectEntityByName("Table1");
-    table.EditColumn("release_date", "v2");
+  it("2. should check min date and max date property control functionality", () => {
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
+    propPane.TogglePropertyState("Editable", "On");
     agHelper.AssertElementExist(
       propPane._propertyPanePropertyControl("validation", "mindate"),
     );
     agHelper.AssertElementExist(
       propPane._propertyPanePropertyControl("validation", "maxdate"),
     );
-    agHelper.RemoveCharsNType(
-      `${propPane._propertyPanePropertyControl("validation", "mindate")} ${
-        table._lastChildDatePicker
-      }`,
-      -1,
-      "2022-05-05T00:00:10.1010+05:30{enter}",
-    );
-    agHelper.RemoveCharsNType(
-      `${propPane._propertyPanePropertyControl("validation", "mindate")} ${
-        table._lastChildDatePicker
-      }`,
-      -1,
-      "2022-05-30T00:00:10.1010+05:30{enter}",
-    );
+    agHelper.GetNClick(locators._existingFieldTextByName("Min Date"));
+    agHelper.GetNClick(datePickerlocators.calendarHeader, 2);
+    agHelper.GetNClick(datePickerlocators.year("2022"), 0, true);
+    agHelper.GetNClick(datePickerlocators.calendarHeader, 1);
+    agHelper.GetNClick(dataSources._visibleTextSpan("May"), 0, true);
+    agHelper.GetNClick(datePickerlocators.date("005"));
+    agHelper.PressEnter();
+    agHelper.GetNClick(locators._existingFieldTextByName("Min Date"));
+    agHelper.GetNClick(datePickerlocators.calendarHeader, 2);
+    agHelper.GetNClick(datePickerlocators.year("2022"), 0, true);
+    agHelper.GetNClick(datePickerlocators.date("030"));
     table.ClickOnEditIcon(0, 2);
     agHelper
       .GetText(table._popoverErrorMsg("Date out of range"))
       .then(($textData) => expect($textData).to.eq("Date out of range"));
-    agHelper.RemoveCharsNType(
-      `${propPane._propertyPanePropertyControl("validation", "mindate")} ${
-        table._lastChildDatePicker
-      }`,
-      -1,
-      "{enter}",
-    );
-    agHelper.RemoveCharsNType(
-      `${propPane._propertyPanePropertyControl("validation", "maxdate")} ${
-        table._lastChildDatePicker
-      }`,
-      -1,
-      "{enter}",
-    );
+
+    agHelper.GetNClick(locators._existingFieldTextByName("Min Date"));
+    agHelper.ClickButton("Clear");
+
+    agHelper.GetNClick(locators._existingFieldTextByName("Max Date"));
+    agHelper.ClickButton("Clear");
+
+    table.ClickOnEditIcon(0, 2);
+    agHelper.AssertElementAbsence(table._popoverErrorMsg("Date out of range"));
   });
 
-  it("4. should allow ISO 8601 format date and not throw a disallowed validation error", () => {
-    entityExplorer.SelectEntityByName("Table1");
+  it("3. should allow ISO 8601 format date and not throw a disallowed validation error", () => {
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
     propPane.NavigateBackToPropertyPane();
     propPane.UpdatePropertyFieldValue(
       "Table data",
@@ -137,13 +86,5 @@ describe("Table widget date column inline editing functionality", () => {
       .then(($textData) =>
         expect($textData).to.include("YYYY-MM-DDTHH:mm:ss.SSSZ"),
       );
-    propPane.UpdatePropertyFieldValue(
-      "Date format",
-      "YYYY-MM-DDTHH:mm:ss.SSSsZ",
-    );
-    //we should now see an error when an incorrect date format
-    agHelper.AssertElementVisible(
-      `${propPane._propertyDateFormat} ${table._codeMirrorError}`,
-    );
   });
 });

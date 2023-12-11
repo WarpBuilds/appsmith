@@ -7,6 +7,11 @@ import {
   entityItems,
   assertHelper,
 } from "../../../../support/Objects/ObjectsCore";
+import {
+  AppSidebar,
+  AppSidebarButton,
+  PageLeftPane,
+} from "../../../../support/Pages/EditorNavigation";
 let guid: any, dsName_1: any, dsName_2: any;
 
 describe("Test Postgres number of connections on page load + Bug 11572, Bug 11202", function () {
@@ -49,7 +54,7 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
     dataSources.CreatePlugIn("PostgreSQL");
     agHelper.RenameWithInPane("Postgres_2_" + guid, false);
     const userName = "test_conn_user_" + guid;
-    dataSources.FillPostgresDSForm("production", false, userName, "password");
+    dataSources.FillPostgresDSForm("Production", false, userName, "password");
     dataSources.TestSaveDatasource();
 
     cy.wrap("Postgres_2_" + guid).as("dsName_2");
@@ -57,24 +62,22 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
       dsName_2 = $dsName;
 
       //Create 10 queries
-      for (let i = 1; i <= 10; i++) {
-        dataSources.NavigateFromActiveDS(dsName_2, true);
-        agHelper.RenameWithInPane("Query_" + i);
+      for (let i = 1; i <= 8; i++) {
         const userCreateQuery = `select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE';`;
-        dataSources.EnterQuery(userCreateQuery);
+        dataSources.CreateQueryForDS(dsName_2, userCreateQuery, "Query_" + i);
       }
     });
   });
 
-  it.skip("3. Bind queries to select widget", () => {
-    for (let i = 1; i <= 10; i++) {
+  it("3. Bind queries to select widget", () => {
+    for (let i = 1; i < 8; i++) {
       entityExplorer.DragDropWidgetNVerify(
         "selectwidget",
-        i * 50 + 50,
-        i * 50 + 200,
+        i * 1.5 * 50 + 100,
+        i * 1.5 * 50 + 50,
       );
-      propPane.UpdatePropertyFieldValue(
-        "Options",
+      propPane.EnterJSContext(
+        "Source Data",
         "{{Query_" +
           i +
           ".data.map( (obj) =>{ return  {'label': obj.table_name, 'value': obj.table_name }})}}",
@@ -83,19 +86,22 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
         "Default selected value",
         "{{Query_" + i + ".data[" + (i - 1) + "].table_name}}",
       );
+      propPane.EnterJSContext("Value key", "value");
       assertHelper.AssertNetworkStatus("@updateLayout", 200);
     }
   });
 
   it("4. Run query to drop any open connections before deploy and then deploy app", () => {
-    dataSources.NavigateFromActiveDS(dsName_1, true);
-    agHelper.RenameWithInPane("check_number_of_connections_1");
     const userName = "test_conn_user_" + guid;
     const dropConnections =
       `select pg_terminate_backend(pg_stat_activity.pid) from pg_stat_activity where pg_stat_activity.usename = '` +
       userName +
       `'`;
-    dataSources.EnterQuery(dropConnections);
+    dataSources.CreateQueryForDS(
+      dsName_1,
+      dropConnections,
+      "check_number_of_connections_1",
+    );
     dataSources.RunQuery();
     const checkNoOfConnQuery =
       `select count(*) from pg_stat_activity where usename='` + userName + `'`;
@@ -110,13 +116,15 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
   });
 
   it("5. Run query to check number of open connections after deploy", () => {
-    dataSources.NavigateFromActiveDS(dsName_2, true);
-    agHelper.RenameWithInPane("check_number_of_connections_2");
     const checkNoOfConnQuery =
       `select count(*) from pg_stat_activity where usename='test_conn_user_` +
       guid +
       `'`;
-    dataSources.EnterQuery(checkNoOfConnQuery);
+    dataSources.CreateQueryForDS(
+      dsName_2,
+      checkNoOfConnQuery,
+      "check_number_of_connections_2",
+    );
     dataSources.RunQuery();
     dataSources.ReadQueryTableResponse(0).then(($cellData) => {
       expect(Number($cellData)).to.lte(5);
@@ -145,7 +153,8 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
     "Verify Verify Deletion of all created queries & Deletion of datasource",
     () => {
       //Verify Deletion of all created queries
-      entityExplorer.ExpandCollapseEntity("Queries/JS");
+      AppSidebar.navigate(AppSidebarButton.Editor);
+      PageLeftPane.expandCollapseItem("Queries/JS");
       entityExplorer.ActionContextMenuByEntityName({
         entityNameinLeftSidebar: "create_user",
         action: "Delete",
@@ -162,7 +171,7 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
         entityType: entityItems.Query,
       });
 
-      for (let i = 1; i <= 10; i++) {
+      for (let i = 1; i <= 8; i++) {
         entityExplorer.ActionContextMenuByEntityName({
           entityNameinLeftSidebar: "Query_" + i,
           action: "Delete",
@@ -173,9 +182,9 @@ describe("Test Postgres number of connections on page load + Bug 11572, Bug 1120
       //Verify deletion of datasource
       deployMode.DeployApp();
       deployMode.NavigateBacktoEditor();
-      entityExplorer.ExpandCollapseEntity("Queries/JS");
-      dataSources.DeleteDatasouceFromWinthinDS(dsName_1, 200);
-      dataSources.DeleteDatasouceFromWinthinDS(dsName_2, 200);
+      PageLeftPane.expandCollapseItem("Queries/JS");
+      dataSources.DeleteDatasourceFromWithinDS(dsName_1, 200);
+      dataSources.DeleteDatasourceFromWithinDS(dsName_2, 200);
     },
   );
 });

@@ -1,11 +1,15 @@
+import EditorNavigation, {
+  EntityType,
+} from "../../../../support/Pages/EditorNavigation";
+
 const commonlocators = require("../../../../locators/commonlocators.json");
 const testdata = require("../../../../fixtures/testdata.json");
 import {
   agHelper,
   locators,
-  entityExplorer,
   apiPage,
 } from "../../../../support/Objects/ObjectsCore";
+import PageList from "../../../../support/Pages/PageList";
 
 describe("Rest Bugs tests", function () {
   beforeEach(() => {
@@ -45,7 +49,7 @@ describe("Rest Bugs tests", function () {
     );
     agHelper.PressEscape();
 
-    entityExplorer.SelectEntityByName("Page1", "Pages");
+    EditorNavigation.SelectEntityByName("Page1", EntityType.Page);
     agHelper.ClickButton("Invoke APIs!");
     cy.wait(12000); // for all api calls to complete!
 
@@ -128,7 +132,7 @@ describe("Rest Bugs tests", function () {
 
   it("2. Bug 6863: Clicking on 'debug' crashes the appsmith application", function () {
     cy.startErrorRoutes();
-    entityExplorer.AddNewPage();
+    PageList.AddNewPage();
     //Api 1
     apiPage.CreateAndFillApi(
       "https://api.thecatapi.com/v1/images/search",
@@ -155,8 +159,8 @@ describe("Rest Bugs tests", function () {
     );
     apiPage.RunAPI(false);
     cy.ResponseStatusCheck(testdata.successStatusCode);
-    entityExplorer.SelectEntityByName("Table1", "Widgets");
-    entityExplorer.SelectEntityByName("Currencies", "Queries/JS");
+    EditorNavigation.SelectEntityByName("Table1", EntityType.Widget);
+    EditorNavigation.SelectEntityByName("Currencies", EntityType.Api);
     apiPage.EnterURL("https://api.coinbase.com/v2/");
     agHelper.Sleep();
     // cy.get(".t--dataSourceField").then(($el) => {
@@ -177,7 +181,7 @@ describe("Rest Bugs tests", function () {
       });
   });
 
-  it("Bug 13515: API Response gets garbled if encoded with gzip", function () {
+  it("4. Bug 13515: API Response gets garbled if encoded with gzip", function () {
     apiPage.CreateAndFillApi(
       "https://postman-echo.com/gzip",
       "GarbledResponseAPI",
@@ -192,7 +196,17 @@ describe("Rest Bugs tests", function () {
     });
   });
 
-  afterEach(() => {
-    // put your clean up code if any
+  // this test applies to other fields as well - params and body formdata
+  it("5. Bug 25817: Assert that header fields are correctly updated.", function () {
+    apiPage.CreateAndFillApi("https://postman-echo.com/gzip", "HeaderTest");
+    apiPage.EnterHeader("hello", "world", 0);
+    apiPage.EnterHeader("", "", 1);
+    agHelper.GetNClick(apiPage._addMoreHeaderFieldButton);
+    apiPage.EnterHeader("hey", "there", 2);
+
+    agHelper.RefreshPage();
+
+    apiPage.ValidateHeaderParams({ key: "hello", value: "world" }, 0);
+    apiPage.ValidateHeaderParams({ key: "hey", value: "there" }, 1);
   });
 });
