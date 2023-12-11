@@ -1,6 +1,7 @@
 name: Client Build
 
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       pr:
@@ -34,7 +35,7 @@ defaults:
 
 jobs:
   client-build:
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     # Only run this workflow for internally triggered events
     if: |
       github.event.pull_request.head.repo.full_name == github.repository ||
