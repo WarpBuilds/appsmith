@@ -6,7 +6,7 @@ on:
 
 jobs:
   path-filter:
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     outputs:
       server: ${{ steps.filter.outputs.server }}
       client: ${{ steps.filter.outputs.client == 'true' && steps.filter.outputs.not-cypress-manual == 'true' }}
@@ -94,7 +94,7 @@ jobs:
         client-lint,
       ]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     defaults:
       run:
         shell: bash
