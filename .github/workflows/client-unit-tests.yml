@@ -24,7 +24,7 @@ defaults:
 
 jobs:
   client-unit-tests:
-    runs-on: ubuntu-latest-8-cores
+    runs-on: warp-ubuntu-latest-x64-16x
     defaults:
       run:
         working-directory: app/client
