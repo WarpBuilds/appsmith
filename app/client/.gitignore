@@ -66,5 +66,3 @@ stats.json
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-
-trigger-deploy
